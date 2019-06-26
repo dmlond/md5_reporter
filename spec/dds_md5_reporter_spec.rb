@@ -19,7 +19,7 @@ describe DdsMd5Reporter do
       it 'should raise an error' do
         expect {
           subject
-        }.to raise_error ArgumentError
+        }.to raise_error ArgumentError, "missing keywords: upload_id, user_key, agent_key, dds_api_url"
       end
     end
 
@@ -27,13 +27,15 @@ describe DdsMd5Reporter do
       subject {
         DdsMd5Reporter.new(
           upload_id: upload_id,
-          user_key: nil
+          user_key: nil,
+          agent_key: agent_key,
+          dds_api_url: dds_api_url
         )
       }
       it 'should raise an error' do
         expect {
           subject
-        }.to raise_error ArgumentError
+        }.to raise_error ArgumentError, "upload_id, user_key, agent_key, and dds_api_url cannot be nil"
       end
     end
 
@@ -42,13 +44,14 @@ describe DdsMd5Reporter do
         DdsMd5Reporter.new(
           upload_id: upload_id,
           user_key: user_key,
-          agent_key: nil
+          agent_key: nil,
+          dds_api_url: dds_api_url
         )
       }
       it 'should raise an error' do
         expect {
           subject
-        }.to raise_error ArgumentError
+        }.to raise_error ArgumentError, "upload_id, user_key, agent_key, and dds_api_url cannot be nil"
       end
     end
 
@@ -64,7 +67,7 @@ describe DdsMd5Reporter do
       it 'should raise an error' do
         expect {
           subject
-        }.to raise_error ArgumentError
+        }.to raise_error ArgumentError, "upload_id, user_key, agent_key, and dds_api_url cannot be nil"
       end
     end
 
