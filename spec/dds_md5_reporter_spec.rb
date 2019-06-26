@@ -23,24 +23,11 @@ describe DdsMd5Reporter do
       end
     end
 
-    context 'missing user_key' do
-      subject {
-        DdsMd5Reporter.new(
-          upload_id: upload_id
-        )
-      }
-      it 'should raise an error' do
-        expect {
-          subject
-        }.to raise_error ArgumentError
-      end
-    end
-
-    context 'missing agent_key' do
+    context 'nil user_key' do
       subject {
         DdsMd5Reporter.new(
           upload_id: upload_id,
-          user_key: user_key
+          user_key: nil
         )
       }
       it 'should raise an error' do
@@ -50,12 +37,28 @@ describe DdsMd5Reporter do
       end
     end
 
-    context 'missing dds_api_url' do
+    context 'nil agent_key' do
       subject {
         DdsMd5Reporter.new(
           upload_id: upload_id,
           user_key: user_key,
-          agent_key: agent_key
+          agent_key: nil
+        )
+      }
+      it 'should raise an error' do
+        expect {
+          subject
+        }.to raise_error ArgumentError
+      end
+    end
+
+    context 'nil dds_api_url' do
+      subject {
+        DdsMd5Reporter.new(
+          upload_id: upload_id,
+          user_key: user_key,
+          agent_key: agent_key,
+          dds_api_url: nil
         )
       }
       it 'should raise an error' do

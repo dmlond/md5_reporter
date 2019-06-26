@@ -5,10 +5,12 @@ require 'digest'
 
 class DdsMd5Reporter
   def initialize(upload_id:, user_key:, agent_key:, dds_api_url:)
-    @upload_id = upload_id || raise(ArgumentError, "missing keywords: upload_id")
-    @user_key = user_key || raise(ArgumentError, "missing keywords: user_key")
-    @agent_key = agent_key || raise(ArgumentError, "missing keywords: agent_key")
-    @dds_api_url = dds_api_url || raise(ArgumentError, "missing keywords: dds_api_url")
+    raise(ArgumentError, "upload_id, user_key, agent_key, and dds_api_url cannot be nil") unless upload_id && user_key && agent_key && dds_api_url
+
+    @upload_id = upload_id
+    @user_key = user_key
+    @agent_key = agent_key
+    @dds_api_url = dds_api_url
 
     @digest = Digest::MD5.new
   end
