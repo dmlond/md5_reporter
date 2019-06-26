@@ -4,11 +4,11 @@ require 'httparty'
 require 'digest'
 
 class DdsMd5Reporter
-  def initialize(upload_id, user_key, agent_key, dds_api_url)
-    @upload_id = upload_id
-    @user_key = user_key
-    @agent_key = agent_key
-    @dds_api_url = dds_api_url
+  def initialize(upload_id:, user_key:, agent_key:, dds_api_url:)
+    @upload_id = upload_id || raise(ArgumentError, "missing keywords: upload_id")
+    @user_key = user_key || raise(ArgumentError, "missing keywords: user_key")
+    @agent_key = agent_key || raise(ArgumentError, "missing keywords: agent_key")
+    @dds_api_url = dds_api_url || raise(ArgumentError, "missing keywords: dds_api_url")
 
     @digest = Digest::MD5.new
   end
@@ -52,12 +52,27 @@ class DdsMd5Reporter
   end
 end
 
+def usage
+  $stderr.puts "usage: dds_md5_reporter <upload_id>
+  requires the following Environment Variables
+    USER_KEY: user key for duke data service user
+    AGENT_KEY: software_agent key for duke data service
+    DDS_API_URL: url to dds api (with protocol and /api/v1)
+  "
+  exit(1)
+end
+
 if $0 == __FILE__
-  upload_id = ARGV.shift
-  DDSMD5Reporter.new(
-    upload_id,
-    ENV['BOT_KEY'],
-    ENV['AGENT_KEY'],
-    ENV['DDS_API_URL']
-  ).launch_worker
+  upload_id = ARGV.shift or usage()
+  begin
+    DdsMd5Reporter.new(
+      upload_id: upload_id,
+      user_key: ENV['USER_KEY'],
+      agent_key: ENV['AGENT_KEY'],
+      dds_api_url: ENV['DDS_API_URL']
+    ).launch_worker
+  rescue ArgumentError => e
+    $stderr.puts "#{e.message}"
+    usage()
+  end
 end

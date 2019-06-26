@@ -26,7 +26,7 @@ describe DdsMd5Reporter do
     context 'missing user_key' do
       subject {
         DdsMd5Reporter.new(
-          upload_id
+          upload_id: upload_id
         )
       }
       it 'should raise an error' do
@@ -39,8 +39,8 @@ describe DdsMd5Reporter do
     context 'missing agent_key' do
       subject {
         DdsMd5Reporter.new(
-          upload_id,
-          user_key
+          upload_id: upload_id,
+          user_key: user_key
         )
       }
       it 'should raise an error' do
@@ -53,9 +53,9 @@ describe DdsMd5Reporter do
     context 'missing dds_api_url' do
       subject {
         DdsMd5Reporter.new(
-          upload_id,
-          user_key,
-          agent_key
+          upload_id: upload_id,
+          user_key: user_key,
+          agent_key: agent_key
         )
       }
       it 'should raise an error' do
@@ -68,10 +68,10 @@ describe DdsMd5Reporter do
     context 'all present' do
       subject {
         DdsMd5Reporter.new(
-          upload_id,
-          user_key,
-          agent_key,
-          dds_api_url
+          upload_id: upload_id,
+          user_key: user_key,
+          agent_key: agent_key,
+          dds_api_url: dds_api_url
         )
       }
 
@@ -86,19 +86,19 @@ describe DdsMd5Reporter do
   describe 'interface' do
     subject {
       DdsMd5Reporter.new(
-        upload_id,
-        user_key,
-        agent_key,
-        dds_api_url
+        upload_id: upload_id,
+        user_key: user_key,
+        agent_key: agent_key,
+        dds_api_url: dds_api_url
       )
     }
 
-    describe '.json_headers' do
+    describe '#json_headers' do
       it { is_expected.to respond_to(:json_headers) }
       it { expect(subject.json_headers).to eq(expected_json_headers) }
     end
 
-    describe '.auth_token' do
+    describe '#auth_token' do
       it { is_expected.to respond_to(:auth_token) }
 
       shared_context 'mocked auth token request' do
@@ -192,7 +192,7 @@ describe DdsMd5Reporter do
       end
     end
 
-    describe '.launch_worker' do
+    describe '#launch_worker' do
       it { is_expected.to respond_to(:launch_worker) }
     end
   end
