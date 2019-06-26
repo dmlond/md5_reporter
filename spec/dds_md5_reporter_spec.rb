@@ -13,6 +13,13 @@ describe DdsMd5Reporter do
     { 'Content-Type' => "application/json", 'Accept' => "application/json" }
   }
 
+  let(:expected_api_token) { "abc123xyz" }
+  let(:expected_auth_header) {
+    {
+      'Authorization' => expected_api_token
+    }.merge(expected_json_headers)
+  }
+
   describe 'required arguments' do
     context 'missing upload_id' do
       subject { DdsMd5Reporter.new }
@@ -130,7 +137,6 @@ describe DdsMd5Reporter do
         let(:expected_response_response) {
           double()
         }
-        let(:expected_api_token) { "abc123xyz" }
         let(:expected_time_to_live) { 7200 }
         let(:expected_api_token_response) {
           {
@@ -198,7 +204,7 @@ describe DdsMd5Reporter do
       end
     end
 
-    describe '#launch_worker' do
+    describe '.launch_worker' do
       it { is_expected.to respond_to(:launch_worker) }
     end
   end
