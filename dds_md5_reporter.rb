@@ -4,20 +4,16 @@ require 'httparty'
 require 'digest'
 
 class DdsMd5Reporter
-  def initialize(file_version_id, user_key, agent_key, dds_api_url)
+  def initialize(file_version_id:, user_key:, agent_key:, dds_api_url:)
     usage = "file_version_id, user_key, agent_key, and dds_api_url cannot be nil"
 
-    raise(ArgumentError, "missing file_version_id, #{usage}")
-      unless file_version_id
+    raise(ArgumentError, "missing file_version_id, #{usage}") unless file_version_id
 
-    raise(ArgumentError, "missing user_key, #{usage}")
-      unless user_key
+    raise(ArgumentError, "missing user_key, #{usage}") unless user_key
 
-    raise(ArgumentError, "missing agent_key, #{usage}")
-      unless agent_key
+    raise(ArgumentError, "missing agent_key, #{usage}") unless agent_key
 
-    raise(ArgumentError, "missing dds_api_url, #{usage}")
-      unless dds_api_url
+    raise(ArgumentError, "missing dds_api_url, #{usage}") unless dds_api_url
 
     @file_version_id = file_version_id
     @user_key = user_key
@@ -25,8 +21,23 @@ class DdsMd5Reporter
     @dds_api_url = dds_api_url
   end
 
+  def raise_dds_api_exception(preamble, resp)
+    if resp.body.match(/error.*reason.*suggestion/)
+      dds_error = resp.parsed_response
+      raise(
+        StandardError,
+        "#{preamble}: #{dds_error["reason"]} #{dds_error["suggestion"]}"
+      )
+    else
+      raise(StandardError, "#{preamble}: #{resp.response}")
+    end
+  end
+
   def json_headers
-   { 'Content-Type' => "application/json", 'Accept' => "application/json" }
+   {
+     'Content-Type' => "application/json",
+     'Accept' => "application/json"
+   }
   end
 
   def auth_token
@@ -46,7 +57,10 @@ class DdsMd5Reporter
         user_key: @user_key
       }.to_json
     )
-    (resp.response.code.to_i == 201) || raise(StandardError, "#{resp.parsed_response["reason"]} #{resp.parsed_response["suggestion"]}")
+    (resp.response.code.to_i == 201) || raise_dds_api_exception(
+      "unable to get agent api_token", resp
+    )
+
     @initialized_on = Time.now.to_i
     token_payload = resp.parsed_response
     @auth_token = token_payload["api_token"]
@@ -59,12 +73,16 @@ class DdsMd5Reporter
       'Authorization' => auth_token
     }.merge(json_headers)
   end
-# swift 0-10 is the first 11 characters
-# s3 0-10 is the first 11 characters
+
   def file_version
     return @file_version if @file_version
-    resp = HTTParty.get("#{@dds_api_url}/file_versions/#{@file_version_id}", headers: auth_header)
-    (resp.response.code.to_i == 200) || raise(StandardError, "#{resp.parsed_response["reason"]} #{resp.parsed_response["suggestion"]}")
+    resp = HTTParty.get(
+      "#{@dds_api_url}/file_versions/#{@file_version_id}",
+      headers: auth_header
+    )
+    (resp.response.code.to_i == 200) || raise_dds_api_exception(
+      "unable to get file_version", resp
+    )
     @file_version = resp.parsed_response
     @file_version
   end
@@ -72,15 +90,22 @@ class DdsMd5Reporter
   def download_url
     #always refresh
     resp = HTTParty.get("#{@dds_api_url}/file_versions/#{@file_version_id}/url", headers: auth_header)
-    (resp.response.code.to_i == 200) || raise(StandardError, "#{resp.parsed_response["reason"]} #{resp.parsed_response["suggestion"]}")
+    (resp.response.code.to_i == 200) || raise_dds_api_exception(
+      "unable to get download_url", resp
+    )
     download_url_payload=resp.parsed_response
     "#{download_url_payload["host"]}#{download_url_payload["url"]}"
   end
 
   def upload
     return @upload if @upload
-    resp = HTTParty.get("#{@dds_api_url}/uploads/#{file_version["upload"]["id"]}", headers: auth_header)
-    (resp.response.code.to_i == 200) || raise(StandardError, "#{resp.parsed_response["reason"]} #{resp.parsed_response["suggestion"]}")
+    resp = HTTParty.get(
+      "#{@dds_api_url}/uploads/#{file_version["upload"]["id"]}",
+      headers: auth_header
+    )
+    (resp.response.code.to_i == 200) || raise_dds_api_exception(
+      "unable to get upload", resp
+    )
     @upload = resp.parsed_response
     @upload
   end
@@ -92,7 +117,9 @@ class DdsMd5Reporter
       download_url,
       headers: {"Range" => "bytes=#{chunk_start}-#{chunk_end}"}
     )
-    (resp.response.code.to_i == 206) || raise(StandardError, "problem getting range #{chunk_start}-#{chunk_end}")
+    (resp.response.code.to_i == 206) || raise_dds_api_exception(
+      "problem getting chunk #{chunk_summary["number"]} range #{chunk_start}-#{chunk_end}", resp
+    )
     this_chunk = resp.body
 
     unless Digest::MD5.hexdigest(this_chunk) == chunk_summary["hash"]["value"]
@@ -123,11 +150,9 @@ class DdsMd5Reporter
         algorithm: "md5"
       }.to_json
     )
-    (resp.response.code.to_i == 200) || raise(StandardError, "problem reporting md5 #{resp.parsed_response}")
-    resp.parsed_response
-  end
-
-  def launch_worker
+    (resp.response.code.to_i == 200) || raise_dds_api_exception(
+      "problem reporting md5", resp
+    )
   end
 end
 
@@ -149,7 +174,8 @@ if $0 == __FILE__
       user_key: ENV['USER_KEY'],
       agent_key: ENV['AGENT_KEY'],
       dds_api_url: ENV['DDS_API_URL']
-    ).launch_worker
+    ).report_md5
+    puts "md5 reported"
   rescue ArgumentError => e
     $stderr.puts "#{e.message}"
     usage()
