@@ -361,6 +361,7 @@ describe DdsMd5Reporter do
                 headers: expected_headers
               ).and_return(expected_response)
           end
+
           it {
             expect(
               subject.call_external(
@@ -370,7 +371,6 @@ describe DdsMd5Reporter do
               )
             ).to eq(expected_response)
           }
-
         end
 
         context 'with body only' do
@@ -406,6 +406,110 @@ describe DdsMd5Reporter do
           it {
             expect(
               subject.call_external(
+                expected_verb,
+                expected_path
+              )
+            ).to eq(expected_response)
+          }
+        end
+      end
+    end
+
+    describe 'dds_api' do
+      it { is_expected.to respond_to(:dds_api) }
+
+      describe 'behavior' do
+        let(:expected_verb) { :verb }
+        let(:expected_path) { 'path' }
+        let(:expected_response) { 'expected_response' }
+
+        context 'with headers and body' do
+          let(:expected_headers) { 'expected_headers' }
+          let(:expected_body) { 'expected body' }
+          before do
+            expect(reporter).to receive(:call_external)
+              .with(
+                expected_verb,
+                expected_path,
+                expected_headers,
+                expected_body
+              ).and_return(expected_response)
+          end
+          it {
+            expect(
+              subject.dds_api(
+                expected_verb,
+                expected_path,
+                expected_headers,
+                expected_body
+              )
+            ).to eq(expected_response)
+          }
+        end
+
+        context 'with header only' do
+          let(:expected_headers) { 'expected_headers' }
+          before do
+            expect(reporter).to receive(:call_external)
+              .with(
+                expected_verb,
+                expected_path,
+                expected_headers,
+                nil
+              ).and_return(expected_response)
+          end
+
+          it {
+            expect(
+              subject.dds_api(
+                expected_verb,
+                expected_path,
+                expected_headers
+              )
+            ).to eq(expected_response)
+          }
+        end
+
+        context 'with body only' do
+          let(:expected_body) { 'expected body' }
+          before do
+            expect(reporter).to receive(:auth_header)
+              .and_return(expected_auth_header)
+            expect(reporter).to receive(:call_external)
+              .with(
+                expected_verb,
+                expected_path,
+                expected_auth_header,
+                expected_body
+              ).and_return(expected_response)
+          end
+          it {
+            expect(
+              subject.dds_api(
+                expected_verb,
+                expected_path,
+                nil,
+                expected_body
+              )
+            ).to eq(expected_response)
+          }
+        end
+
+        context 'without header or body' do
+          before do
+            expect(reporter).to receive(:auth_header)
+              .and_return(expected_auth_header)
+            expect(reporter).to receive(:call_external)
+              .with(
+                expected_verb,
+                expected_path,
+                expected_auth_header,
+                nil
+              ).and_return(expected_response)
+          end
+          it {
+            expect(
+              subject.dds_api(
                 expected_verb,
                 expected_path
               )
