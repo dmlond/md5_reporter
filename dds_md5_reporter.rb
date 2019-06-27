@@ -5,15 +5,15 @@ require 'digest'
 
 class DdsMd5Reporter
   def initialize(file_version_id:, user_key:, agent_key:, dds_api_url:)
-    usage = "file_version_id, user_key, agent_key, and dds_api_url cannot be nil"
+    usage = "The keywords file_version_id, user_key, agent_key, and dds_api_url cannot be nil."
 
-    raise(ArgumentError, "missing file_version_id, #{usage}") unless file_version_id
+    raise(ArgumentError, "missing file_version_id. #{usage}") unless file_version_id
 
-    raise(ArgumentError, "missing user_key, #{usage}") unless user_key
+    raise(ArgumentError, "missing user_key. #{usage}") unless user_key
 
-    raise(ArgumentError, "missing agent_key, #{usage}") unless agent_key
+    raise(ArgumentError, "missing agent_key. #{usage}") unless agent_key
 
-    raise(ArgumentError, "missing dds_api_url, #{usage}") unless dds_api_url
+    raise(ArgumentError, "missing dds_api_url. #{usage}") unless dds_api_url
 
     @file_version_id = file_version_id
     @user_key = user_key
