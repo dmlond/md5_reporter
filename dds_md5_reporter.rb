@@ -74,12 +74,26 @@ class DdsMd5Reporter
     }.merge(json_headers)
   end
 
+  def dds_api(verb, path, body=nil)
+    if body
+      HTTParty.send(
+        verb,
+        path,
+        headers: auth_header,
+        body: body
+      )
+    else
+      HTTParty.send(
+        verb,
+        path,
+        headers: auth_header
+      )
+    end
+  end
+
   def file_version
     return @file_version if @file_version
-    resp = HTTParty.get(
-      "#{@dds_api_url}/file_versions/#{@file_version_id}",
-      headers: auth_header
-    )
+    resp = dds_api :get, "#{@dds_api_url}/file_versions/#{@file_version_id}"
     (resp.response.code.to_i == 200) || raise_dds_api_exception(
       "unable to get file_version", resp
     )
@@ -89,7 +103,7 @@ class DdsMd5Reporter
 
   def download_url
     #always refresh
-    resp = HTTParty.get("#{@dds_api_url}/file_versions/#{@file_version_id}/url", headers: auth_header)
+    resp = dds_api :get, "#{@dds_api_url}/file_versions/#{@file_version_id}/url"
     (resp.response.code.to_i == 200) || raise_dds_api_exception(
       "unable to get download_url", resp
     )
@@ -99,10 +113,7 @@ class DdsMd5Reporter
 
   def upload
     return @upload if @upload
-    resp = HTTParty.get(
-      "#{@dds_api_url}/uploads/#{file_version["upload"]["id"]}",
-      headers: auth_header
-    )
+    resp = dds_api :get, "#{@dds_api_url}/uploads/#{file_version["upload"]["id"]}"
     (resp.response.code.to_i == 200) || raise_dds_api_exception(
       "unable to get upload", resp
     )
@@ -142,14 +153,12 @@ class DdsMd5Reporter
   end
 
   def report_md5
-    resp = HTTParty.put(
-      "#{@dds_api_url}/uploads/#{file_version["upload"]["id"]}/hashes",
-      headers: auth_header,
-      body: {
-        value: upload_md5,
-        algorithm: "md5"
-      }.to_json
-    )
+    path = "#{@dds_api_url}/uploads/#{file_version["upload"]["id"]}/hashes"
+    payload = {
+      value: upload_md5,
+      algorithm: "md5"
+    }.to_json
+    resp = dds_api :put, path, payload
     (resp.response.code.to_i == 200) || raise_dds_api_exception(
       "problem reporting md5", resp
     )
