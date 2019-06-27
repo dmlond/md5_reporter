@@ -320,6 +320,101 @@ describe DdsMd5Reporter do
       end
     end
 
+    describe '#call_external' do
+      it { is_expected.to respond_to(:call_external) }
+
+      describe 'behavior' do
+        let(:expected_verb) { :verb }
+        let(:expected_path) { 'path' }
+        let(:expected_response) { 'expected_response' }
+        context 'with headers and body' do
+          let(:expected_headers) { 'expected_headers' }
+          let(:expected_body) { 'expected body' }
+          before do
+            expect(HTTParty).to receive(:send)
+              .with(
+                expected_verb,
+                expected_path,
+                headers: expected_headers,
+                body: expected_body
+              ).and_return(expected_response)
+          end
+          it {
+            expect(
+              subject.call_external(
+                expected_verb,
+                expected_path,
+                expected_headers,
+                expected_body
+              )
+            ).to eq(expected_response)
+          }
+        end
+
+        context 'with header only' do
+          let(:expected_headers) { 'expected_headers' }
+          before do
+            expect(HTTParty).to receive(:send)
+              .with(
+                expected_verb,
+                expected_path,
+                headers: expected_headers
+              ).and_return(expected_response)
+          end
+          it {
+            expect(
+              subject.call_external(
+                expected_verb,
+                expected_path,
+                expected_headers
+              )
+            ).to eq(expected_response)
+          }
+
+        end
+
+        context 'with body only' do
+          let(:expected_body) { 'expected body' }
+          before do
+            expect(HTTParty).to receive(:send)
+              .with(
+                expected_verb,
+                expected_path,
+                body: expected_body
+              ).and_return(expected_response)
+          end
+          it {
+            expect(
+              subject.call_external(
+                expected_verb,
+                expected_path,
+                nil,
+                expected_body
+              )
+            ).to eq(expected_response)
+          }
+        end
+
+        context 'without header or body' do
+          before do
+            expect(HTTParty).to receive(:send)
+              .with(
+                expected_verb,
+                expected_path
+              ).and_return(expected_response)
+          end
+          it {
+            expect(
+              subject.call_external(
+                expected_verb,
+                expected_path
+              )
+            ).to eq(expected_response)
+          }
+        end
+      end
+    end
+
     shared_context 'a failure response' do
       let(:failure_code) { "400" }
       let(:expected_error) { StandardError.new("failed dds api request") }
