@@ -49,14 +49,12 @@ class DdsMd5Reporter
       end
     end
 
-    resp = HTTParty.post(
-      "#{@dds_api_url}/software_agents/api_token",
-      headers: json_headers,
-      body: {
-        agent_key: @agent_key,
-        user_key: @user_key
-      }.to_json
-    )
+    path = "#{@dds_api_url}/software_agents/api_token"
+    payload = {
+      agent_key: @agent_key,
+      user_key: @user_key
+    }.to_json
+    resp = dds_api :post, path, json_headers, payload
     (resp.response.code.to_i == 201) || raise_dds_api_exception(
       "unable to get agent api_token", resp
     )
@@ -74,19 +72,20 @@ class DdsMd5Reporter
     }.merge(json_headers)
   end
 
-  def dds_api(verb, path, body=nil)
+  def dds_api(verb, path, headers=nil, body=nil)
+    headers ||= auth_header
     if body
       HTTParty.send(
         verb,
         path,
-        headers: auth_header,
+        headers: headers,
         body: body
       )
     else
       HTTParty.send(
         verb,
         path,
-        headers: auth_header
+        headers: headers
       )
     end
   end
@@ -158,7 +157,7 @@ class DdsMd5Reporter
       value: upload_md5,
       algorithm: "md5"
     }.to_json
-    resp = dds_api :put, path, payload
+    resp = dds_api :put, path, nil, payload
     (resp.response.code.to_i == 200) || raise_dds_api_exception(
       "problem reporting md5", resp
     )
