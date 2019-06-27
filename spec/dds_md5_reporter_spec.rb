@@ -763,7 +763,8 @@ describe DdsMd5Reporter do
       describe 'behavior' do
         let(:expected_download_url) { 'http://download_url' }
         let(:expected_number) { 1 }
-        let(:expected_hash) { "abc123xyz" }
+        let(:chunk_text) { 'chunk_text' }
+        let(:expected_hash) { Digest::MD5.hexdigest(chunk_text) }
         let(:chunk_summary) {
           {
             "size" => "1000",
@@ -775,6 +776,13 @@ describe DdsMd5Reporter do
         }
         let(:expected_chunk_start) { 0 }
         let(:expected_chunk_end) { expected_chunk_start + chunk_summary["size"].to_i - 1 }
+        let(:expected_http_verb) { :get }
+        let(:expected_path) { expected_download_url }
+        let(:expected_request_headers) {
+          {
+            "Range" => "bytes=#{expected_chunk_start}-#{expected_chunk_end}"
+          }
+        }
 
         subject {
           reporter.chunk_text(chunk_summary, expected_chunk_start)
@@ -786,21 +794,37 @@ describe DdsMd5Reporter do
         end
 
         context 'with call_external error' do
-          let(:expected_http_verb) { :get }
-          let(:expected_path) { expected_download_url }
           let(:expected_body) { nil }
           let(:expected_preamble) { "problem getting chunk #{chunk_summary["number"]} range #{expected_chunk_start}-#{expected_chunk_end}" }
-          let(:expected_request_headers) {
-            {
-              "Range" => "bytes=#{expected_chunk_start}-#{expected_chunk_end}"
-            }
-          }
           let(:expected_reporter_call_method) { :call_external }
           it_behaves_like 'a failed external call'
         end
 
         context 'without call_external error' do
+          let(:expected_success_code) { "206" }
           include_context 'a success response'
+          before do
+            expect(reporter).to receive(:call_external)
+              .with(expected_http_verb, expected_path, expected_request_headers)
+              .and_return(expected_response)
+            expect(expected_response).to receive(:body)
+              .and_return(chunk_text)
+          end
+
+          context 'chunk md5 mactches md5 of downloaded chunk_text' do
+            it {
+              is_expected.to eq(chunk_text)
+            }
+          end
+
+          context 'chunk md5 does not match md5 of downloaded chunk_text' do
+            let(:expected_hash) { 'wrong hash' }
+            it {
+              expect {
+                subject
+              }.to raise_error(StandardError, "chunk #{chunk_summary["number"]} download md5 does not match reported md5!")
+            }
+          end
         end
       end
     end
