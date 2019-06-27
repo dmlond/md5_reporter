@@ -132,6 +132,127 @@ describe DdsMd5Reporter do
     }
     subject { reporter }
 
+    shared_context 'a success response' do
+      let(:expected_response) {
+        instance_double("HTTParty::Response")
+      }
+      let(:expected_response_response) {
+        double()
+      }
+
+      before do
+        expect(expected_response).to receive(:response)
+          .exactly(expected_calls).times
+          .and_return(expected_response_response)
+        expect(expected_response_response).to receive(:code)
+          .exactly(expected_calls).times
+          .and_return(expected_success_code)
+      end
+    end
+
+    shared_context 'a failure response' do
+      let(:failure_code) { "400" }
+      let(:expected_response) {
+        instance_double("HTTParty::Response")
+      }
+      let(:expected_response_response) {
+        double()
+      }
+
+      before do
+        expect(expected_response).to receive(:response)
+          .and_return(expected_response_response)
+        expect(expected_response_response).to receive(:code)
+          .and_return(failure_code)
+      end
+    end
+
+    shared_examples 'a failed external call' do
+      let(:expected_error) { StandardError.new("failed dds api request") }
+      include_context 'a failure response'
+      before do
+        expect(reporter).to receive(:raise_dds_api_exception)
+          .with(expected_preamble, expected_response)
+          .and_raise(expected_error)
+
+        if expected_body && expected_request_headers
+          expect(reporter).to receive(expected_reporter_call_method)
+            .with(
+              expected_http_verb,
+              expected_path,
+              expected_request_headers,
+              expected_body
+            ).and_return(expected_response)
+        elsif expected_request_headers
+          expect(reporter).to receive(expected_reporter_call_method)
+            .with(
+              expected_http_verb,
+              expected_path,
+              expected_request_headers
+            ).and_return(expected_response)
+        elsif expected_body
+          expect(reporter).to receive(expected_reporter_call_method)
+            .with(
+              expected_http_verb,
+              expected_path,
+              nil,
+              expected_body
+            ).and_return(expected_response)
+        else
+          expect(reporter).to receive(expected_reporter_call_method)
+            .with(
+              expected_http_verb,
+              expected_path
+            ).and_return(expected_response)
+        end
+      end
+
+      it {
+        expect {
+          subject
+        }.to raise_error(expected_error)
+      }
+    end
+
+    shared_examples 'a failed dds api request' do
+      let(:expected_reporter_call_method) { :dds_api }
+      it_behaves_like 'a failed external call'
+    end
+
+    shared_examples 'a method with a cached response' do
+      # these methods are expected to only call dds_api and
+      # parse its response once, and then cache the parsed_esponse
+      # to be returned on subsequent calls
+      let(:expected_calls) { 1 }
+      include_context 'a success response'
+      context 'initial call' do
+        it {
+          expect(reporter).to receive(:dds_api)
+            .with(*expected_dds_api_arguments)
+            .and_return(expected_response)
+          expect(expected_response)
+            .to receive(:parsed_response)
+            .and_return(expected_response_payload)
+          is_expected.to eq(expected_method_response)
+        }
+      end
+
+      context 'additional call after initial call' do
+        it {
+          expect(reporter).to receive(:dds_api)
+            .with(*expected_dds_api_arguments)
+            .exactly(1).times
+            .and_return(expected_response)
+          expect(expected_response)
+            .to receive(:parsed_response)
+            .exactly(1).times
+            .and_return(expected_response_payload)
+          expect(initial_call).to eq(expected_method_response)
+          expect(subsequent_call).to eq(expected_method_response)
+        }
+      end
+    end
+
     describe '#raise_dds_api_exception' do
       it { is_expected.to respond_to(:raise_dds_api_exception) }
 
@@ -191,114 +312,74 @@ describe DdsMd5Reporter do
     describe '#auth_token' do
       it { is_expected.to respond_to(:auth_token) }
 
-      shared_context 'mocked auth token request' do
+      describe 'behavior' do
         let(:expected_path) { "#{dds_api_url}/software_agents/api_token" }
-        let(:expected_body) {
-          {
-            agent_key: agent_key,
-            user_key: user_key
-          }.to_json
-        }
-        let(:expected_response) {
-          instance_double("HTTParty::Response")
-        }
-        let(:expected_response_response) {
-          double()
-        }
-        let(:expected_calls) { 1 }
-
-        before do
-          expect(expected_response).to receive(:response)
-            .exactly(expected_calls).times
-            .and_return(expected_response_response)
-
-          expect(expected_response_response).to receive(:code)
-            .exactly(expected_calls).times
-            .and_return(expected_code)
-
-          expect(HTTParty).to receive(:post)
-            .with(
-              expected_path,
-              headers: expected_json_headers,
-              body: expected_body
-            )
-            .exactly(expected_calls).times
-            .and_return(expected_response)
-        end
-      end
-
-      shared_context 'auth_token request with error' do
-        let(:expected_code) { "404" }
-        let(:expected_error) { StandardError.new("expected error") }
-        include_context 'mocked auth token request'
-
-        before do
-          is_expected.to receive(:raise_dds_api_exception)
-            .with("unable to get agent api_token", expected_response)
-            .and_raise(expected_error)
-        end
-      end
-
-      shared_context 'successfull auth_token request' do
-        let(:expected_code) { "201" }
-        include_context 'mocked auth token request'
-
+        let(:expected_http_verb) { :post }
         let(:expected_time_to_live) { 7200 }
-        let(:expected_api_token_response) {
+        let(:expected_response_payload) {
           {
             "api_token" => expected_api_token,
             "time_to_live" => expected_time_to_live
           }
         }
+        let(:expected_method_response) { expected_api_token }
+        let(:expected_body) {
+          {
+            "agent_key" => agent_key,
+            "user_key" => user_key
+          }.to_json
+        }
+        let(:expected_request_headers) { expected_json_headers }
+        subject {
+          reporter.auth_token
+        }
 
-        before do
-          expect(expected_response).to receive(:parsed_response)
-            .exactly(expected_calls).times
-            .and_return(expected_api_token_response)
-        end
-      end
-
-      describe 'behavior' do
         context 'with incorrect credentials' do
-          include_context 'auth_token request with error'
-
-          it {
-            expect {
-              subject.auth_token
-            }.to raise_error(expected_error)
-          }
+          let(:expected_preamble) { "unable to get agent api_token" }
+          it_behaves_like 'a failed dds api request'
         end
 
         context 'with correct credentials' do
-          include_context 'successfull auth_token request'
+          let(:expected_success_code) { "201" }
+          let(:expected_dds_api_arguments) {[expected_http_verb, expected_path, expected_json_headers, expected_body]}
+          let(:initial_call) {
+            reporter.auth_token
+          }
+          let(:subsequent_call) {
+            reporter.auth_token
+          }
 
-          context 'for the first time' do
-            it 'should return an auth_token' do
-              expect(subject.auth_token).to eq(expected_api_token)
-            end
+          context 'when called again and time has not passed enough to cause the cached token to be expired' do
+            it_behaves_like 'a method with a cached response'
           end
 
-          context 'when token is not expired' do
-            before do
-              subject.auth_token
-            end
-
-            it {
-              expect(subject.auth_token).to eq(expected_api_token)
-            }
-          end
-
-          context 'when token is expired' do
+          context 'when called again and enough time has passed to cause the cached token to be expired' do
+            # this method calls the api for a new token using the agent_key
+            # and user_key if the enough time has passed between when the
+            # original token was cached to cause it to be expired based on
+            # the time_to_live returned by the api
             let(:expected_calls) { 2 }
-            before do
-              subject.auth_token
-            end
+            include_context 'a success response'
+            it 'is expected to call the dds_api again'  do
+              expect(reporter).to receive(:dds_api)
+                .with(*expected_dds_api_arguments)
+                .exactly(expected_calls).times
+                .and_return(expected_response)
+              expect(expected_response)
+                .to receive(:parsed_response)
+                .exactly(expected_calls).times
+                .and_return(expected_response_payload)
 
-            it {
+              expect(initial_call).to eq(expected_method_response)
+
+              initialized_on = Time.now.to_i
               travel_to(Time.now + 10000) do
-                expect(subject.auth_token).to eq(expected_api_token)
+                current = Time.now.to_i
+                difference = current - initialized_on
+                expect(difference).not_to be < expected_time_to_live
+                expect(subsequent_call).to eq(expected_method_response)
               end
-            }
+            end
           end
         end
       end
@@ -519,125 +600,6 @@ describe DdsMd5Reporter do
       end
     end
 
-    shared_context 'a success response' do
-      let(:expected_response) {
-        instance_double("HTTParty::Response")
-      }
-      let(:expected_response_response) {
-        double()
-      }
-
-      before do
-        expect(expected_response).to receive(:response)
-          .and_return(expected_response_response)
-        expect(expected_response_response).to receive(:code)
-          .and_return(expected_success_code)
-      end
-    end
-
-    shared_context 'a failure response' do
-      let(:failure_code) { "400" }
-      let(:expected_response) {
-        instance_double("HTTParty::Response")
-      }
-      let(:expected_response_response) {
-        double()
-      }
-
-      before do
-        expect(expected_response).to receive(:response)
-          .and_return(expected_response_response)
-        expect(expected_response_response).to receive(:code)
-          .and_return(failure_code)
-      end
-    end
-
-    shared_examples 'a failed external call' do
-      let(:expected_error) { StandardError.new("failed dds api request") }
-      include_context 'a failure response'
-      before do
-        expect(reporter).to receive(:raise_dds_api_exception)
-          .with(expected_preamble, expected_response)
-          .and_raise(expected_error)
-
-        if expected_body && expected_request_headers
-          expect(reporter).to receive(expected_reporter_call_method)
-            .with(
-              expected_http_verb,
-              expected_path,
-              expected_request_headers,
-              expected_body
-            ).and_return(expected_response)
-        elsif expected_request_headers
-          expect(reporter).to receive(expected_reporter_call_method)
-            .with(
-              expected_http_verb,
-              expected_path,
-              expected_request_headers
-            ).and_return(expected_response)
-        elsif expected_body
-          expect(reporter).to receive(expected_reporter_call_method)
-            .with(
-              expected_http_verb,
-              expected_path,
-              nil,
-              expected_body
-            ).and_return(expected_response)
-        else
-          expect(reporter).to receive(expected_reporter_call_method)
-            .with(
-              expected_http_verb,
-              expected_path
-            ).and_return(expected_response)
-        end
-      end
-
-      it {
-        expect {
-          subject
-        }.to raise_error(expected_error)
-      }
-    end
-
-    shared_examples 'a failed dds api request' do
-      let(:expected_reporter_call_method) { :dds_api }
-      it_behaves_like 'a failed external call'
-    end
-
-    shared_examples 'a method with a cached response' do
-      # these methods are expected to only call dds_api and
-      # parse its response once, and then cache the parsed_esponse
-      # to be returned on subsequent calls
-
-      include_context 'a success response'
-      context 'initial call' do
-        it {
-          expect(reporter).to receive(:dds_api)
-            .with(expected_verb, expected_path)
-            .and_return(expected_response)
-          expect(expected_response)
-            .to receive(:parsed_response)
-            .and_return(expected_payload)
-          is_expected.to eq(expected_payload)
-        }
-      end
-
-      context 'additional call after initial call' do
-        it {
-          expect(reporter).to receive(:dds_api)
-            .with(expected_verb, expected_path)
-            .exactly(1).times
-            .and_return(expected_response)
-          expect(expected_response)
-            .to receive(:parsed_response)
-            .exactly(1).times
-            .and_return(expected_payload)
-          expect(initial_call).to eq(expected_payload)
-          expect(subsequent_call).to eq(expected_payload)
-        }
-      end
-    end
-
     describe '#file_version' do
       it { is_expected.to respond_to(:file_version) }
 
@@ -659,13 +621,15 @@ describe DdsMd5Reporter do
           let(:expected_success_code) { "200" }
           let(:expected_verb) { :get }
           let(:expected_path) { "#{dds_api_url}/file_versions/#{file_version_id}" }
-          let(:expected_payload) { file_version }
+          let(:expected_response_payload) { file_version }
+          let(:expected_method_response) { file_version }
           let(:initial_call) {
             reporter.file_version
           }
           let(:subsequent_call) {
             reporter.file_version
           }
+          let(:expected_dds_api_arguments) {[expected_verb, expected_path]}
           it_behaves_like 'a method with a cached response'
         end
       end
@@ -690,6 +654,7 @@ describe DdsMd5Reporter do
 
         context 'without dds api error' do
           let(:expected_success_code) { "200" }
+          let(:expected_calls) { 1 }
           let(:expected_verb) { :get }
           let(:expected_path) { "#{dds_api_url}/file_versions/#{file_version_id}/url" }
           let(:expected_host) { 'http://exected_host' }
@@ -745,13 +710,15 @@ describe DdsMd5Reporter do
           let(:expected_success_code) { "200" }
           let(:expected_verb) { :get }
           let(:expected_path) { "#{dds_api_url}/uploads/#{file_version["upload"]["id"]}" }
-          let(:expected_payload) { {"id": "foo", "dds_kind": "upload"} }
+          let(:expected_response_payload) { {"id": "foo", "dds_kind": "upload"} }
+          let(:expected_method_response) { expected_response_payload }
           let(:initial_call) {
             reporter.upload
           }
           let(:subsequent_call) {
             reporter.upload
           }
+          let(:expected_dds_api_arguments) {[expected_verb, expected_path]}
           it_behaves_like 'a method with a cached response'
         end
       end
@@ -802,6 +769,7 @@ describe DdsMd5Reporter do
 
         context 'without call_external error' do
           let(:expected_success_code) { "206" }
+          let(:expected_calls) { 1 }
           include_context 'a success response'
           before do
             expect(reporter).to receive(:call_external)
