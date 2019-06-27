@@ -72,22 +72,37 @@ class DdsMd5Reporter
     }.merge(json_headers)
   end
 
-  def dds_api(verb, path, headers=nil, body=nil)
-    headers ||= auth_header
-    if body
+  def call_external(verb, path, headers=nil, body=nil)
+    if headers && body
       HTTParty.send(
         verb,
         path,
         headers: headers,
         body: body
       )
-    else
+    elsif headers
       HTTParty.send(
         verb,
         path,
         headers: headers
       )
+    elsif body
+      HTTParty.send(
+        verb,
+        path,
+        body: body
+      )
+    else
+      HTTParty.send(
+        verb,
+        path
+      )
     end
+  end
+
+  def dds_api(verb, path, headers=nil, body=nil)
+    headers ||= auth_header
+    call_external(verb, path, headers, body)
   end
 
   def file_version
@@ -123,10 +138,8 @@ class DdsMd5Reporter
   def chunk_text(chunk_summary, chunk_start)
     chunk_end = chunk_start + chunk_summary["size"].to_i - 1
 
-    resp = HTTParty.get(
-      download_url,
-      headers: {"Range" => "bytes=#{chunk_start}-#{chunk_end}"}
-    )
+    headers = {"Range" => "bytes=#{chunk_start}-#{chunk_end}"}
+    resp = call_external :get, download_url, headers
     (resp.response.code.to_i == 206) || raise_dds_api_exception(
       "problem getting chunk #{chunk_summary["number"]} range #{chunk_start}-#{chunk_end}", resp
     )
