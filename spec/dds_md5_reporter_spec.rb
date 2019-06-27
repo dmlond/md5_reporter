@@ -320,18 +320,7 @@ describe DdsMd5Reporter do
       end
     end
 
-    shared_context 'a dds token authenticated request' do
-      let(:expected_request_headers) {
-        expected_auth_header
-      }
-
-      before do
-        expect(reporter).to receive(:auth_header)
-          .and_return(expected_auth_header)
-      end
-    end
-
-    shared_examples 'a failed dds api request' do
+    shared_context 'a failure response' do
       let(:failure_code) { "400" }
       let(:expected_error) { StandardError.new("failed dds api request") }
       let(:expected_response) {
@@ -346,21 +335,45 @@ describe DdsMd5Reporter do
           .and_return(expected_response_response)
         expect(expected_response_response).to receive(:code)
           .and_return(failure_code)
+      end
+    end
+
+    shared_examples 'a failed external call' do
+      include_context 'a failure response'
+      before do
         expect(reporter).to receive(:raise_dds_api_exception)
           .with(expected_preamble, expected_response)
           .and_raise(expected_error)
-        if (expected_http_verb == :get)
-          expect(HTTParty).to receive(expected_http_verb)
-            .with(expected_path, headers: expected_request_headers)
-            .and_return(expected_response)
-        else
-          expect(HTTParty).to receive(expected_http_verb)
+
+        if expected_body && expected_request_headers
+          expect(reporter).to receive(expected_reporter_call_method)
             .with(
+              expected_http_verb,
               expected_path,
-              headers: expected_request_headers,
-              body: expected_body
-            )
-            .and_return(expected_response)
+              expected_request_headers,
+              expected_body
+            ).and_return(expected_response)
+        elsif expected_request_headers
+          expect(reporter).to receive(expected_reporter_call_method)
+            .with(
+              expected_http_verb,
+              expected_path,
+              expected_request_headers
+            ).and_return(expected_response)
+        elsif expected_body
+          expect(reporter).to receive(expected_reporter_call_method)
+            .with(
+              expected_http_verb,
+              expected_path,
+              nil,
+              expected_body
+            ).and_return(expected_response)
+        else
+          expect(reporter).to receive(expected_reporter_call_method)
+            .with(
+              expected_http_verb,
+              expected_path
+            ).and_return(expected_response)
         end
       end
 
@@ -369,6 +382,11 @@ describe DdsMd5Reporter do
           subject
         }.to raise_error(expected_error)
       }
+    end
+
+    shared_examples 'a failed dds api request' do
+      let(:expected_reporter_call_method) { :dds_api }
+      it_behaves_like 'a failed external call'
     end
 
     describe '#file_version' do
@@ -382,8 +400,9 @@ describe DdsMd5Reporter do
 
         context 'with dds api error' do
           let(:expected_http_verb) { :get }
+          let(:expected_body) { nil }
+          let(:expected_request_headers) { nil }
           let(:expected_preamble) { "unable to get file_version" }
-          include_context 'a dds token authenticated request'
           it_behaves_like 'a failed dds api request'
         end
       end
@@ -400,8 +419,9 @@ describe DdsMd5Reporter do
 
         context 'with dds api error' do
           let(:expected_http_verb) { :get }
+          let(:expected_body) { nil }
+          let(:expected_request_headers) { nil }
           let(:expected_preamble) { "unable to get download_url" }
-          include_context 'a dds token authenticated request'
           it_behaves_like 'a failed dds api request'
         end
       end
@@ -423,8 +443,9 @@ describe DdsMd5Reporter do
 
         context 'with dds api error' do
           let(:expected_http_verb) { :get }
+          let(:expected_body) { nil }
+          let(:expected_request_headers) { nil }
           let(:expected_preamble) { "unable to get upload" }
-          include_context 'a dds token authenticated request'
           it_behaves_like 'a failed dds api request'
         end
       end
@@ -461,13 +482,15 @@ describe DdsMd5Reporter do
         context 'with dds api error' do
           let(:expected_http_verb) { :get }
           let(:expected_path) { expected_download_url }
+          let(:expected_body) { nil }
           let(:expected_preamble) { "problem getting chunk #{chunk_summary["number"]} range #{expected_chunk_start}-#{expected_chunk_end}" }
           let(:expected_request_headers) {
             {
               "Range" => "bytes=#{expected_chunk_start}-#{expected_chunk_end}"
             }
           }
-          it_behaves_like 'a failed dds api request'
+          let(:expected_reporter_call_method) { :call_external }
+          it_behaves_like 'a failed external call'
         end
       end
     end
@@ -482,6 +505,7 @@ describe DdsMd5Reporter do
 
       end
     end
+
     describe '#report_md5' do
       it { is_expected.to respond_to(:report_md5) }
 
@@ -507,8 +531,8 @@ describe DdsMd5Reporter do
               algorithm: "md5"
             }.to_json
           }
+          let(:expected_request_headers) { nil }
           let(:expected_preamble) { "problem reporting md5" }
-          include_context 'a dds token authenticated request'
           it_behaves_like 'a failed dds api request'
         end
       end
