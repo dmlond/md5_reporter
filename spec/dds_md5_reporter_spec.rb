@@ -51,7 +51,7 @@ describe DdsMd5Reporter do
       it 'should raise an error' do
         expect {
           subject
-        }.to raise_error ArgumentError, "missing file_version_id, file_version_id, user_key, agent_key, and dds_api_url cannot be nil"
+        }.to raise_error ArgumentError, "missing file_version_id. The keywords file_version_id, user_key, agent_key, and dds_api_url cannot be nil."
       end
     end
 
@@ -67,7 +67,7 @@ describe DdsMd5Reporter do
       it 'should raise an error' do
         expect {
           subject
-        }.to raise_error ArgumentError, "missing user_key, file_version_id, user_key, agent_key, and dds_api_url cannot be nil"
+        }.to raise_error ArgumentError, "missing user_key. The keywords file_version_id, user_key, agent_key, and dds_api_url cannot be nil."
       end
     end
 
@@ -83,7 +83,7 @@ describe DdsMd5Reporter do
       it 'should raise an error' do
         expect {
           subject
-        }.to raise_error ArgumentError, "missing agent_key, file_version_id, user_key, agent_key, and dds_api_url cannot be nil"
+        }.to raise_error ArgumentError, "missing agent_key. The keywords file_version_id, user_key, agent_key, and dds_api_url cannot be nil."
       end
     end
 
@@ -99,7 +99,7 @@ describe DdsMd5Reporter do
       it 'should raise an error' do
         expect {
           subject
-        }.to raise_error ArgumentError, "missing dds_api_url, file_version_id, user_key, agent_key, and dds_api_url cannot be nil"
+        }.to raise_error ArgumentError, "missing dds_api_url. The keywords file_version_id, user_key, agent_key, and dds_api_url cannot be nil."
       end
     end
 
@@ -519,9 +519,24 @@ describe DdsMd5Reporter do
       end
     end
 
+    shared_context 'a success response' do
+      let(:expected_response) {
+        instance_double("HTTParty::Response")
+      }
+      let(:expected_response_response) {
+        double()
+      }
+
+      before do
+        expect(expected_response).to receive(:response)
+          .and_return(expected_response_response)
+        expect(expected_response_response).to receive(:code)
+          .and_return(expected_success_code)
+      end
+    end
+
     shared_context 'a failure response' do
       let(:failure_code) { "400" }
-      let(:expected_error) { StandardError.new("failed dds api request") }
       let(:expected_response) {
         instance_double("HTTParty::Response")
       }
@@ -538,6 +553,7 @@ describe DdsMd5Reporter do
     end
 
     shared_examples 'a failed external call' do
+      let(:expected_error) { StandardError.new("failed dds api request") }
       include_context 'a failure response'
       before do
         expect(reporter).to receive(:raise_dds_api_exception)
@@ -588,6 +604,40 @@ describe DdsMd5Reporter do
       it_behaves_like 'a failed external call'
     end
 
+    shared_examples 'a method with a cached response' do
+      # these methods are expected to only call dds_api and
+      # parse its response once, and then cache the parsed_esponse
+      # to be returned on subsequent calls
+
+      include_context 'a success response'
+      context 'initial call' do
+        it {
+          expect(reporter).to receive(:dds_api)
+            .with(expected_verb, expected_path)
+            .and_return(expected_response)
+          expect(expected_response)
+            .to receive(:parsed_response)
+            .and_return(expected_payload)
+          is_expected.to eq(expected_payload)
+        }
+      end
+
+      context 'additional call after initial call' do
+        it {
+          expect(reporter).to receive(:dds_api)
+            .with(expected_verb, expected_path)
+            .exactly(1).times
+            .and_return(expected_response)
+          expect(expected_response)
+            .to receive(:parsed_response)
+            .exactly(1).times
+            .and_return(expected_payload)
+          expect(initial_call).to eq(expected_payload)
+          expect(subsequent_call).to eq(expected_payload)
+        }
+      end
+    end
+
     describe '#file_version' do
       it { is_expected.to respond_to(:file_version) }
 
@@ -603,6 +653,20 @@ describe DdsMd5Reporter do
           let(:expected_request_headers) { nil }
           let(:expected_preamble) { "unable to get file_version" }
           it_behaves_like 'a failed dds api request'
+        end
+
+        context 'without dds api error' do
+          let(:expected_success_code) { "200" }
+          let(:expected_verb) { :get }
+          let(:expected_path) { "#{dds_api_url}/file_versions/#{file_version_id}" }
+          let(:expected_payload) { file_version }
+          let(:initial_call) {
+            reporter.file_version
+          }
+          let(:subsequent_call) {
+            reporter.file_version
+          }
+          it_behaves_like 'a method with a cached response'
         end
       end
     end
@@ -622,6 +686,35 @@ describe DdsMd5Reporter do
           let(:expected_request_headers) { nil }
           let(:expected_preamble) { "unable to get download_url" }
           it_behaves_like 'a failed dds api request'
+        end
+
+        context 'without dds api error' do
+          let(:expected_success_code) { "200" }
+          let(:expected_verb) { :get }
+          let(:expected_path) { "#{dds_api_url}/file_versions/#{file_version_id}/url" }
+          let(:expected_host) { 'http://exected_host' }
+          let(:expected_url) { '/expected_url' }
+          let(:expected_payload) {
+            {
+              "host" => expected_host,
+              "url" => expected_url
+            }
+          }
+          let(:expected_download_url) { "#{expected_host}#{expected_url}" }
+          include_context 'a success response'
+
+          before do
+            expect(reporter).to receive(:dds_api)
+              .with(expected_verb, expected_path)
+              .and_return(expected_response)
+            expect(expected_response)
+              .to receive(:parsed_response)
+              .and_return(expected_payload)
+          end
+
+          it {
+            is_expected.to eq(expected_download_url)
+          }
         end
       end
     end
@@ -646,6 +739,20 @@ describe DdsMd5Reporter do
           let(:expected_request_headers) { nil }
           let(:expected_preamble) { "unable to get upload" }
           it_behaves_like 'a failed dds api request'
+        end
+
+        context 'without dds api error' do
+          let(:expected_success_code) { "200" }
+          let(:expected_verb) { :get }
+          let(:expected_path) { "#{dds_api_url}/uploads/#{file_version["upload"]["id"]}" }
+          let(:expected_payload) { {"id": "foo", "dds_kind": "upload"} }
+          let(:initial_call) {
+            reporter.upload
+          }
+          let(:subsequent_call) {
+            reporter.upload
+          }
+          it_behaves_like 'a method with a cached response'
         end
       end
     end
@@ -678,7 +785,7 @@ describe DdsMd5Reporter do
             .and_return(expected_download_url)
         end
 
-        context 'with dds api error' do
+        context 'with call_external error' do
           let(:expected_http_verb) { :get }
           let(:expected_path) { expected_download_url }
           let(:expected_body) { nil }
@@ -690,6 +797,10 @@ describe DdsMd5Reporter do
           }
           let(:expected_reporter_call_method) { :call_external }
           it_behaves_like 'a failed external call'
+        end
+
+        context 'without call_external error' do
+          include_context 'a success response'
         end
       end
     end
