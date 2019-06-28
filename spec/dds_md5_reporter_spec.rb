@@ -335,7 +335,7 @@ describe DdsMd5Reporter do
 
           context 'when called again and enough time has passed to cause the cached token to be expired' do
             # this method calls the api for a new token using the agent_key
-            # and user_key if the enough time has passed between when the
+            # and user_key if enough time has passed between when the
             # original token was cached to cause it to be expired based on
             # the time_to_live returned by the api
             let(:expected_calls) { 2 }
@@ -604,8 +604,6 @@ describe DdsMd5Reporter do
 
         context 'without dds api error' do
           let(:expected_success_code) { "200" }
-          let(:expected_verb) { :get }
-          let(:expected_path) { "#{dds_api_url}/file_versions/#{file_version_id}" }
           let(:expected_response_payload) { file_version }
           let(:expected_method_response) { file_version }
           let(:initial_call) {
@@ -631,6 +629,7 @@ describe DdsMd5Reporter do
             expected_path
           ]
         }
+
         subject {
           reporter.download_url
         }
@@ -643,30 +642,28 @@ describe DdsMd5Reporter do
         context 'without dds api error' do
           let(:expected_success_code) { "200" }
           let(:expected_calls) { 1 }
-          let(:expected_verb) { :get }
-          let(:expected_path) { "#{dds_api_url}/file_versions/#{file_version_id}/url" }
           let(:expected_host) { 'http://exected_host' }
           let(:expected_url) { '/expected_url' }
-          let(:expected_payload) {
+          let(:expected_response_payload) {
             {
               "host" => expected_host,
               "url" => expected_url
             }
           }
-          let(:expected_download_url) { "#{expected_host}#{expected_url}" }
+          let(:expected_method_response) { "#{expected_host}#{expected_url}" }
           include_context 'a success response'
 
           before do
             expect(reporter).to receive(:dds_api)
-              .with(expected_verb, expected_path)
+              .with(*call_external_arguments)
               .and_return(expected_response)
             expect(expected_response)
               .to receive(:parsed_response)
-              .and_return(expected_payload)
+              .and_return(expected_response_payload)
           end
 
           it {
-            is_expected.to eq(expected_download_url)
+            is_expected.to eq(expected_method_response)
           }
         end
       end
@@ -701,8 +698,6 @@ describe DdsMd5Reporter do
 
         context 'without dds api error' do
           let(:expected_success_code) { "200" }
-          let(:expected_verb) { :get }
-          let(:expected_path) { "#{dds_api_url}/uploads/#{file_version["upload"]["id"]}" }
           let(:expected_response_payload) { {"id": "foo", "dds_kind": "upload"} }
           let(:expected_method_response) { expected_response_payload }
           let(:initial_call) {
