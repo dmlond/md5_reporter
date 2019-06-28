@@ -192,37 +192,77 @@ describe DdsMd5Reporter do
       it_behaves_like 'a failed external call'
     end
 
+    shared_context 'successful reporter call' do
+      include_context 'a success response'
+
+      before do
+        expect(reporter).to receive(expected_reporter_call_method)
+          .with(*call_external_arguments)
+          .exactly(expected_calls).times
+          .and_return(expected_response)
+      end
+    end
+
+    shared_context 'successful reporter call with parsed_response' do
+      include_context 'successful reporter call'
+      before do
+        expect(expected_response)
+          .to receive(:parsed_response)
+          .exactly(expected_calls).times
+          .and_return(expected_response_payload)
+      end
+    end
+
+    shared_context 'successful reporter call with body' do
+      include_context 'successful reporter call'
+      before do
+        expect(expected_response)
+          .to receive(:body)
+          .exactly(expected_calls).times
+          .and_return(expected_response_payload)
+      end
+    end
+
+    shared_examples 'a successful external call with parsed_response' do
+      include_context 'successful reporter call with parsed_response'
+      it {
+        expect {
+          subject
+        }.not_to raise_error
+      }
+    end
+
+    shared_examples 'a successful external call with body' do
+      include_context 'successful reporter call with body'
+      it {
+        expect {
+          subject
+        }.not_to raise_error
+      }
+    end
+
     shared_examples 'a method with a cached response' do
       # these methods are expected to only call dds_api and
       # parse its response once, and then cache the parsed_esponse
       # to be returned on subsequent calls
       let(:expected_calls) { 1 }
-      include_context 'a success response'
+      let(:expected_reporter_call_method) { :dds_api }
+
       context 'initial call' do
-        it {
-          expect(reporter).to receive(:dds_api)
-            .with(*call_external_arguments)
-            .and_return(expected_response)
-          expect(expected_response)
-            .to receive(:parsed_response)
-            .and_return(expected_response_payload)
-          is_expected.to eq(expected_method_response)
-        }
+        it_behaves_like 'a successful external call with parsed_response' do
+          it {
+            is_expected.to eq(expected_method_response)
+          }
+        end
       end
 
       context 'additional call after initial call' do
-        it {
-          expect(reporter).to receive(:dds_api)
-            .with(*call_external_arguments)
-            .exactly(1).times
-            .and_return(expected_response)
-          expect(expected_response)
-            .to receive(:parsed_response)
-            .exactly(1).times
-            .and_return(expected_response_payload)
-          expect(initial_call).to eq(expected_method_response)
-          expect(subsequent_call).to eq(expected_method_response)
-        }
+        it_behaves_like 'a successful external call with parsed_response' do
+          it {
+            expect(initial_call).to eq(expected_method_response)
+            expect(subsequent_call).to eq(expected_method_response)
+          }
+        end
       end
     end
 
@@ -641,6 +681,7 @@ describe DdsMd5Reporter do
 
         context 'without dds api error' do
           let(:expected_success_code) { "200" }
+          let(:expected_reporter_call_method) { :dds_api }
           let(:expected_calls) { 1 }
           let(:expected_host) { 'http://exected_host' }
           let(:expected_url) { '/expected_url' }
@@ -651,20 +692,12 @@ describe DdsMd5Reporter do
             }
           }
           let(:expected_method_response) { "#{expected_host}#{expected_url}" }
-          include_context 'a success response'
 
-          before do
-            expect(reporter).to receive(:dds_api)
-              .with(*call_external_arguments)
-              .and_return(expected_response)
-            expect(expected_response)
-              .to receive(:parsed_response)
-              .and_return(expected_response_payload)
+          it_behaves_like 'a successful external call with parsed_response' do
+            it {
+              is_expected.to eq(expected_method_response)
+            }
           end
-
-          it {
-            is_expected.to eq(expected_method_response)
-          }
         end
       end
     end
@@ -763,24 +796,21 @@ describe DdsMd5Reporter do
 
         context 'without call_external error' do
           let(:expected_success_code) { "206" }
+          let(:expected_reporter_call_method) { :call_external }
           let(:expected_calls) { 1 }
-          include_context 'a success response'
-          before do
-            expect(reporter).to receive(:call_external)
-              .with(expected_http_verb, expected_path, expected_request_headers)
-              .and_return(expected_response)
-            expect(expected_response).to receive(:body)
-              .and_return(chunk_text)
-          end
+          let(:expected_response_payload) { chunk_text }
 
           context 'chunk md5 mactches md5 of downloaded chunk_text' do
-            it {
-              is_expected.to eq(chunk_text)
-            }
+            it_behaves_like 'a successful external call with body' do
+              it {
+                is_expected.to eq(chunk_text)
+              }
+            end
           end
 
           context 'chunk md5 does not match md5 of downloaded chunk_text' do
             let(:expected_hash) { 'wrong hash' }
+            include_context 'successful reporter call with body'
             it {
               expect {
                 subject
