@@ -175,36 +175,9 @@ describe DdsMd5Reporter do
           .with(expected_preamble, expected_response)
           .and_raise(expected_error)
 
-        if expected_body && expected_request_headers
-          expect(reporter).to receive(expected_reporter_call_method)
-            .with(
-              expected_http_verb,
-              expected_path,
-              expected_request_headers,
-              expected_body
-            ).and_return(expected_response)
-        elsif expected_request_headers
-          expect(reporter).to receive(expected_reporter_call_method)
-            .with(
-              expected_http_verb,
-              expected_path,
-              expected_request_headers
-            ).and_return(expected_response)
-        elsif expected_body
-          expect(reporter).to receive(expected_reporter_call_method)
-            .with(
-              expected_http_verb,
-              expected_path,
-              nil,
-              expected_body
-            ).and_return(expected_response)
-        else
-          expect(reporter).to receive(expected_reporter_call_method)
-            .with(
-              expected_http_verb,
-              expected_path
-            ).and_return(expected_response)
-        end
+        expect(reporter).to receive(expected_reporter_call_method)
+          .with(*call_external_arguments)
+          .and_return(expected_response)
       end
 
       it {
@@ -330,6 +303,14 @@ describe DdsMd5Reporter do
           }.to_json
         }
         let(:expected_request_headers) { expected_json_headers }
+        let(:call_external_arguments) {
+          [
+            expected_http_verb,
+            expected_path,
+            expected_request_headers,
+            expected_body
+          ]
+        }
         subject {
           reporter.auth_token
         }
@@ -605,14 +586,19 @@ describe DdsMd5Reporter do
 
       describe 'behavior' do
         let(:expected_path) { "#{dds_api_url}/file_versions/#{file_version_id}" }
+        let(:expected_http_verb) { :get }
+        let(:call_external_arguments) {
+          [
+            expected_http_verb,
+            expected_path
+          ]
+        }
+
         subject {
           reporter.file_version
         }
 
         context 'with dds api error' do
-          let(:expected_http_verb) { :get }
-          let(:expected_body) { nil }
-          let(:expected_request_headers) { nil }
           let(:expected_preamble) { "unable to get file_version" }
           it_behaves_like 'a failed dds api request'
         end
@@ -640,14 +626,18 @@ describe DdsMd5Reporter do
 
       describe 'behavior' do
         let(:expected_path) { "#{dds_api_url}/file_versions/#{file_version_id}/url" }
+        let(:expected_http_verb) { :get }
+        let(:call_external_arguments) {
+          [
+            expected_http_verb,
+            expected_path
+          ]
+        }
         subject {
           reporter.download_url
         }
 
         context 'with dds api error' do
-          let(:expected_http_verb) { :get }
-          let(:expected_body) { nil }
-          let(:expected_request_headers) { nil }
           let(:expected_preamble) { "unable to get download_url" }
           it_behaves_like 'a failed dds api request'
         end
@@ -689,6 +679,14 @@ describe DdsMd5Reporter do
 
       describe 'behavior' do
         let(:expected_path) { "#{dds_api_url}/uploads/#{file_version["upload"]["id"]}" }
+        let(:expected_http_verb) { :get }
+        let(:call_external_arguments) {
+          [
+            expected_http_verb,
+            expected_path
+          ]
+        }
+
         subject {
           reporter.upload
         }
@@ -699,9 +697,6 @@ describe DdsMd5Reporter do
         end
 
         context 'with dds api error' do
-          let(:expected_http_verb) { :get }
-          let(:expected_body) { nil }
-          let(:expected_request_headers) { nil }
           let(:expected_preamble) { "unable to get upload" }
           it_behaves_like 'a failed dds api request'
         end
@@ -749,6 +744,13 @@ describe DdsMd5Reporter do
           {
             "Range" => "bytes=#{expected_chunk_start}-#{expected_chunk_end}"
           }
+        }
+        let(:call_external_arguments) {
+          [
+            expected_http_verb,
+            expected_path,
+            expected_request_headers
+          ]
         }
 
         subject {
@@ -813,6 +815,23 @@ describe DdsMd5Reporter do
 
       describe 'behavior' do
         let(:expected_path) { "#{dds_api_url}/uploads/#{file_version["upload"]["id"]}/hashes" }
+        let(:expected_http_verb) { :put }
+        let(:expected_body) {
+          {
+            value: expected_upload_md5,
+            algorithm: "md5"
+          }.to_json
+        }
+        let(:expected_request_headers) { nil }
+        let(:call_external_arguments) {
+          [
+            expected_http_verb,
+            expected_path,
+            expected_request_headers,
+            expected_body
+          ]
+        }
+
         let(:expected_upload_md5) { "abc123xyz" }
         subject {
           reporter.report_md5
@@ -826,14 +845,6 @@ describe DdsMd5Reporter do
         end
 
         context 'with dds api error' do
-          let(:expected_http_verb) { :put }
-          let(:expected_body) {
-            {
-              value: expected_upload_md5,
-              algorithm: "md5"
-            }.to_json
-          }
-          let(:expected_request_headers) { nil }
           let(:expected_preamble) { "problem reporting md5" }
           it_behaves_like 'a failed dds api request'
         end
