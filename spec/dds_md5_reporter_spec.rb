@@ -201,7 +201,7 @@ describe DdsMd5Reporter do
       context 'initial call' do
         it {
           expect(reporter).to receive(:dds_api)
-            .with(*expected_dds_api_arguments)
+            .with(*call_external_arguments)
             .and_return(expected_response)
           expect(expected_response)
             .to receive(:parsed_response)
@@ -213,7 +213,7 @@ describe DdsMd5Reporter do
       context 'additional call after initial call' do
         it {
           expect(reporter).to receive(:dds_api)
-            .with(*expected_dds_api_arguments)
+            .with(*call_external_arguments)
             .exactly(1).times
             .and_return(expected_response)
           expect(expected_response)
@@ -322,7 +322,6 @@ describe DdsMd5Reporter do
 
         context 'with correct credentials' do
           let(:expected_success_code) { "201" }
-          let(:expected_dds_api_arguments) {[expected_http_verb, expected_path, expected_json_headers, expected_body]}
           let(:initial_call) {
             reporter.auth_token
           }
@@ -343,7 +342,7 @@ describe DdsMd5Reporter do
             include_context 'a success response'
             it 'is expected to call the dds_api again'  do
               expect(reporter).to receive(:dds_api)
-                .with(*expected_dds_api_arguments)
+                .with(*call_external_arguments)
                 .exactly(expected_calls).times
                 .and_return(expected_response)
               expect(expected_response)
@@ -615,7 +614,6 @@ describe DdsMd5Reporter do
           let(:subsequent_call) {
             reporter.file_version
           }
-          let(:expected_dds_api_arguments) {[expected_verb, expected_path]}
           it_behaves_like 'a method with a cached response'
         end
       end
@@ -713,7 +711,6 @@ describe DdsMd5Reporter do
           let(:subsequent_call) {
             reporter.upload
           }
-          let(:expected_dds_api_arguments) {[expected_verb, expected_path]}
           it_behaves_like 'a method with a cached response'
         end
       end
