@@ -223,6 +223,16 @@ describe DdsMd5Reporter do
       end
     end
 
+    shared_examples 'a successful external call with no response' do
+      include_context 'a success response'
+
+      before do
+        expect(reporter).to receive(expected_reporter_call_method)
+          .with(*call_external_arguments)
+          .exactly(expected_calls).times
+      end
+    end
+
     shared_examples 'a successful external call with parsed_response' do
       include_context 'successful reporter call with parsed_response'
       it {
@@ -828,7 +838,94 @@ describe DdsMd5Reporter do
         subject {
           reporter.upload_md5
         }
+        let(:chunk_1) {
+          {
+            "size" => "1024",
+            "number" => 1,
+            "expected_chunk_text" => 'chunk 1'
+          }
+        }
+        let(:chunk_2) {
+          {
+            "size" => "1024",
+            "number" => 2,
+            "expected_chunk_text" => 'chunk 2'
+          }
+        }
+        let(:chunk_3) {
+          {
+            "size" => "300",
+            "number" => 3,
+            "expected_chunk_text" => 'chunk 3'
+          }
+        }
+        let(:expected_chunks) {
+          [
+            chunk_1,
+            chunk_2,
+            chunk_3
+          ]
+        }
+        let(:expected_upload) {
+          {
+            "chunks" => expected_chunks
+          }
+        }
 
+        context 'when upload fails' do
+          let(:expected_error_message) { 'upload failed' }
+          let(:expected_error) { StandardError.new(expected_error_message) }
+          before do
+            expect(reporter).to receive(:upload)
+              .and_raise(expected_error)
+          end
+          it {
+            expect {
+              subject
+            }.to raise_error(expected_error)
+          }
+        end
+
+        context 'when upload succeeds' do
+          before do
+            expect(reporter).to receive(:upload)
+              .and_return(expected_upload)
+          end
+
+          context 'when chunk_text fails' do
+            let(:expected_error_message) { 'chunk_text failed' }
+            let(:expected_error) { StandardError.new(expected_error_message) }
+            before do
+              expect(reporter).to receive(:chunk_text)
+                .and_raise(expected_error)
+            end
+
+            it {
+              expect {
+                subject
+              }.to raise_error(expected_error)
+            }
+          end
+
+          context 'when chunk_text succeeds' do
+            it 'is expected to return the md5 of the upload' do
+              expected_digest = Digest::MD5.new
+              expected_chunk_start = 0
+              expected_chunks.sort {|a,b|
+                a["number"] <=> b["number"]
+              }.each do |expected_chunk_summary|
+                expect(reporter).to receive(:chunk_text)
+                  .with(expected_chunk_summary, expected_chunk_start)
+                  .and_return(expected_chunk_summary["expected_chunk_text"])
+                expected_digest << expected_chunk_summary["expected_chunk_text"]
+                expected_chunk_start += expected_chunk_summary["size"].to_i
+              end
+              expect {
+                is_expected.to eq(expected_digest.hexdigest)
+              }.not_to raise_error
+            end
+          end
+        end
       end
     end
 
@@ -869,6 +966,14 @@ describe DdsMd5Reporter do
         context 'with dds api error' do
           let(:expected_preamble) { "problem reporting md5" }
           it_behaves_like 'a failed dds api request'
+        end
+
+        context 'without dds api error' do
+          let(:expected_success_code) { "200" }
+
+          let(:expected_reporter_call_method) { :dds_api }
+          let(:expected_calls) { 1 }
+          it_behaves_like 'a successful external call with no response'
         end
       end
     end
