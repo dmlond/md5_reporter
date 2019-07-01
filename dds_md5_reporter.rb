@@ -55,7 +55,7 @@ class DdsMd5Reporter
       user_key: @user_key
     }.to_json
     resp = dds_api :post, path, json_headers, payload
-    (resp.response.code.to_i == 201) || raise_dds_api_exception(
+    (external_call_success(resp, 201)) || raise_dds_api_exception(
       "unable to get agent api_token", resp
     )
 
@@ -105,10 +105,14 @@ class DdsMd5Reporter
     call_external(verb, path, headers, body)
   end
 
+  def external_call_success(resp,success_code)
+    resp.response.code.to_i == success_code
+  end
+
   def file_version
     return @file_version if @file_version
     resp = dds_api :get, "#{@dds_api_url}/file_versions/#{@file_version_id}"
-    (resp.response.code.to_i == 200) || raise_dds_api_exception(
+    (external_call_success(resp, 200)) || raise_dds_api_exception(
       "unable to get file_version", resp
     )
     @file_version = resp.parsed_response
@@ -118,7 +122,7 @@ class DdsMd5Reporter
   def download_url
     #always refresh
     resp = dds_api :get, "#{@dds_api_url}/file_versions/#{@file_version_id}/url"
-    (resp.response.code.to_i == 200) || raise_dds_api_exception(
+    (external_call_success(resp, 200)) || raise_dds_api_exception(
       "unable to get download_url", resp
     )
     download_url_payload=resp.parsed_response
@@ -128,7 +132,7 @@ class DdsMd5Reporter
   def upload
     return @upload if @upload
     resp = dds_api :get, "#{@dds_api_url}/uploads/#{file_version["upload"]["id"]}"
-    (resp.response.code.to_i == 200) || raise_dds_api_exception(
+    (external_call_success(resp, 200)) || raise_dds_api_exception(
       "unable to get upload", resp
     )
     @upload = resp.parsed_response
@@ -140,7 +144,7 @@ class DdsMd5Reporter
 
     headers = {"Range" => "bytes=#{chunk_start}-#{chunk_end}"}
     resp = call_external :get, download_url, headers
-    (resp.response.code.to_i == 206) || raise_dds_api_exception(
+    (external_call_success(resp, 206)) || raise_dds_api_exception(
       "problem getting chunk #{chunk_summary["number"]} range #{chunk_start}-#{chunk_end}", resp
     )
     this_chunk = resp.body
@@ -171,7 +175,7 @@ class DdsMd5Reporter
       algorithm: "md5"
     }.to_json
     resp = dds_api :put, path, nil, payload
-    (resp.response.code.to_i == 200) || raise_dds_api_exception(
+    (external_call_success(resp, 200)) || raise_dds_api_exception(
       "problem reporting md5", resp
     )
   end
