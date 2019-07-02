@@ -31,6 +31,7 @@ rspec:
   # tests
   variables:
     GIT_STRATEGY: none
+    TASK_QUEUE_NAME: TASK_QUEUE_NAME
   script:
     - cd ${APP_PATH}
     - rspec
