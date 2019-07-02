@@ -42,8 +42,8 @@ rspec:
 
 scan:
   stage: scan
-  variables:
-    SCAN_IMAGE_OVERRIDE: ${CANDIDATE_IMAGE}
+  before_script:
+    - export SCAN_IMAGE_OVERRIDE="${CANDIDATE_IMAGE}"
   extends: .scan
   only:
     - master
