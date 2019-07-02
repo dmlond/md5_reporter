@@ -5,7 +5,7 @@ stages:
 
 variables:
   LOG_LEVEL: "info"
-  CANDIDATE_IMAGE: "${CI_PROJECT_NAME}-candidate-${CI_COMMIT_REF_SLUG}:${CI_COMMIT_SHA}"
+  CANDIDATE_IMAGE: "${CI_PROJECT_NAME}-candidate-${CI_COMMIT_REF_SLUG}:${CI_COMMIT_SHORT_SHA}"
 
 include:
   - project: 'utility/images/image-scanner'
@@ -42,6 +42,8 @@ rspec:
 
 scan:
   stage: scan
+  variables:
+    SCAN_IMAGE_OVERRIDE: "${CANDIDATE_IMAGE}"
   extends: .scan
   only:
     - master
