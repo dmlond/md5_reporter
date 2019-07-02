@@ -13,8 +13,6 @@ publish_image() {
 }
 
 build_candidate() {
-  local application="${1}"
-  local branch="${2}"
   local candidate_image="${CANDIDATE_IMAGE}"
   info "
   Building candidate ${candidate_image}
@@ -25,10 +23,10 @@ build_candidate() {
 }
 
 run_main() {
-  check_required_environment "CI_COMMIT_REF_SLUG CI_PROJECT_NAME CI_COMMIT_SHA CI_PROJECT_URL CI_REGISTRY_IMAGE" || exit 1
+  check_required_environment "CANDIDATE_IMAGE CI_PROJECT_URL CI_REGISTRY_IMAGE" || exit 1
   login || exit 1
 
-  build_candidate "${CI_PROJECT_NAME}" "${CI_COMMIT_REF_SLUG}" || return 1
+  build_candidate || return 1
   info "ALL COMPLETE"
 }
 
