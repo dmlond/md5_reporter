@@ -2,6 +2,7 @@ stages:
   - build
   - test
   - scan
+  - publish
 
 variables:
   LOG_LEVEL: "info"
@@ -10,6 +11,8 @@ variables:
 include:
   - project: 'utility/images/image-scanner'
     file: '/image-scanner.yml'
+  - project: 'utility/images/auto-version'
+    file: '/auto-version.yml'
 
 build:
   stage: build
@@ -47,3 +50,13 @@ scan:
   extends: .scan
   only:
     - master
+
+# this only runs on master
+# it automatically generates the next semantic verson and creates an annotated tag
+increment_version:
+  extends: .auto_version
+  stage: publish
+  only:
+    - master
+  tags:
+    - docker
