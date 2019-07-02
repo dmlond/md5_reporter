@@ -1,0 +1,46 @@
+stages:
+  - build
+  - test
+  - scan
+
+variables:
+  LOG_LEVEL: "info"
+  CANDIDATE_IMAGE: "${CI_PROJECT_NAME}-candidate-${CI_COMMIT_REF_SLUG}:${CI_COMMIT_SHA}"
+
+include:
+  - project: 'utility/images/image-scanner'
+    file: '/image-scanner.yml'
+
+build:
+  stage: build
+  script:
+    - ./.ci/bin/build
+  only:
+    - branches
+  tags:
+    - shell-executor
+
+rspec:
+  stage: test
+  image: "${CI_REGISTRY_IMAGE}/${CANDIDATE_IMAGE}"
+  # by default, gitlab ci clones your code out into a build directory
+  # that needs to then be initialized with bundler.
+  # Since we are testing a candidate image that already has the required gems
+  # installed with bundle install, we do not need to clone into the build directory.
+  # Instead, we need to change into the APP_PATH for the image before we run the
+  # tests
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - cd ${APP_PATH}
+    - rspec
+  only:
+    - branches
+  tags:
+    - docker
+
+scan:
+  stage: scan
+  extends: .scan
+  only:
+    - master
