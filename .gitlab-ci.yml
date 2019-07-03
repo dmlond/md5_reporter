@@ -6,7 +6,7 @@ stages:
 
 variables:
   LOG_LEVEL: "info"
-  CANDIDATE_IMAGE: ${CI_PROJECT_NAME}-candidate-${CI_COMMIT_REF_SLUG}:${CI_COMMIT_SHORT_SHA}
+  CANDIDATE_IMAGE: ${CI_PROJECT_NAME}:${CI_COMMIT_SHORT_SHA}
 
 include:
   - project: 'utility/images/image-scanner'
@@ -60,3 +60,15 @@ increment_version:
     - master
   tags:
     - docker
+
+# this only runs when a new semantic version tag is created
+promote_candidate:
+  stage: publish
+  script:
+    - ./.ci/bin/promote_candidate
+  only:
+    - /^v[0-9]+\.[0-9]+\.[0-9]+$/
+  except:
+    - branches
+  tags:
+    - shell-executor

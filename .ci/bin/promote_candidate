@@ -1,0 +1,25 @@
+#!/bin/bash
+DIR="$(dirname ${BASH_SOURCE[0]})"
+source ${DIR}/helpers/common
+source ${DIR}/helpers/docker_registry
+
+run_main() {
+  check_required_environment "CI_REGISTRY_IMAGE CANDIDATE_IMAGE CI_PROJECT_NAME CI_COMMIT_REF_SLUG" || exit 1
+  login || exit 1
+
+  local candidate_image="${CI_REGISTRY_IMAGE}/${CANDIDATE_IMAGE}"
+  local promoted_image="${CI_REGISTRY_IMAGE}/${CI_PROJECT_NAME}:${CI_COMMIT_REF_SLUG}"
+
+  pull_image "${candidate_image}"
+  tag_image "${candidate_image}" "${promoted_image}"
+  push_image "${promoted_image}"
+}
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]
+then
+  run_main
+  if [ $? -gt 0 ]
+  then
+    exit 1
+  fi
+fi
