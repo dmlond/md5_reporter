@@ -81,7 +81,7 @@ deploy_development:
     - export VERSION=$(echo "${CI_COMMIT_REF_SLUG}" | sed "s/${CI_ENVIRONMENT_NAME}\-//")
     - export CI_IMAGE_NAME="${CI_REGISTRY_IMAGE}/${CANDIDATE_IMAGE}"
   script:
-    - ./ci/bin/deploy
+    - ${CI_PROJECT_DIR}/.ci/bin/deploy
   environment:
     name: development
   only:
