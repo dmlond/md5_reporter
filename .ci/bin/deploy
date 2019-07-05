@@ -31,7 +31,7 @@ print_template() {
 deploy_template() {
   info "deploying template ${CI_ENVIRONMENT_NAME}-${CI_PROJECT_NAME}"
   dry_run && return
-  print_template | kubectl apply --save-config -f -
+  print_template | kubectl apply -f -
 }
 
 get_pods() {
