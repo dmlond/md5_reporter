@@ -22,3 +22,5 @@ spec:
           envFrom:
             - secretRef:
                 name: md5-reporter-secret-environment
+      imagePullSecrets:
+        - name: md5-reporter-pull
