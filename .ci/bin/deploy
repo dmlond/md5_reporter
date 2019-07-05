@@ -1,0 +1,103 @@
+#!/bin/bash
+source /usr/local/lib/helpers/common
+
+cluster_login() {
+  info "authenticating ${HELM_USER} in ${PROJECT_NAMESPACE}"
+  dry_run && return
+
+  kubectl config set-cluster ci_kube --server="${CLUSTER_SERVER}" || return 1
+  kubectl config set-credentials "${HELM_USER}" --token="${HELM_TOKEN}" || return 1
+  kubectl config set-context ${PROJECT_NAMESPACE}-deploy  --cluster=ci_kube --namespace=${PROJECT_NAMESPACE} --user=${HELM_USER} || return 1
+  kubectl config use-context ${PROJECT_NAMESPACE}-deploy || return 1
+}
+
+docker_config() {
+  echo '{"auths": {"'${CI_REGISTRY}'": {"auth": "'$(echo "${CI_DEPLOY_USER}:${CI_DEPLOY_PASSWORD}" | base64 -w0)'"}}}' | base64 -w0
+}
+
+template_secrets() {
+  sed -i "s/{{CI_ENVIRONMENT_NAME}}/${CI_ENVIRONMENT_NAME}/g" ${CI_PROJECT_DIR}/kustomize/secrets/kustomization.yaml
+  sed -i -e "s/{{VERSION}}/${VERSION}/g" -e "s/{{CI_COMMIT_SHA}}/${CI_COMMIT_SHA}/g" -e "s/{{CI_COMMIT_REF_SLUG}}/${CI_COMMIT_REF_SLUG}/g" -e "s|{{CI_IMAGE_NAME}}|$CI_IMAGE_NAME|g" ${CI_PROJECT_DIR}/kustomize/secrets/deployment.yaml
+  sed -i -e "s|{{AMQP_URL}}|${AMQP_URL}|g" -e "s/{{USER_KEY}}/${USER_KEY}/g" -e "s/{{AGENT_KEY}}/${AGENT_KEY}/g" -e "s|{{DDS_API_URL}}|${DDS_API_URL}|g" -e "s/{{DOCKER_CONFIG}}/$(docker_config)/g" ${CI_PROJECT_DIR}/kustomize/secrets/secrets.yaml
+}
+
+print_template() {
+  info "printing template"
+  dry_run && return
+
+  kustomize build ${CI_PROJECT_DIR}/kustomize/secrets
+}
+
+deploy_template() {
+  info "deploying template ${CI_ENVIRONMENT_NAME}-${CI_PROJECT_NAME}"
+  dry_run && return
+  print_template | kubectl apply --save-config
+}
+
+get_pods() {
+  kubectl get pods -l app=${CI_PROJECT_NAME},environment=${CI_ENVIRONMENT_NAME}
+}
+
+watch_deployment() {
+  info "waiting until deployment ${CI_ENVIRONMENT_NAME}-${CI_PROJECT_NAME} is ready"
+  dry_run && return
+
+  kubectl rollout status deployment/${CI_ENVIRONMENT_NAME}-${CI_PROJECT_NAME} -w || return 1
+  sleep 5
+  get_pods || return 1
+  # see what has been deployed
+  kubectl describe deployment -l app=${CI_PROJECT_NAME},environment=${CI_ENVIRONMENT_NAME},version=${VERSION} || return 1
+  kubectl describe service -l app=${CI_PROJECT_NAME},environment=${CI_ENVIRONMENT_NAME} || return 1
+  kubectl describe route -l app=${CI_PROJECT_NAME},environment=${CI_ENVIRONMENT_NAME} || return 1
+}
+
+run_main() {
+  check_required_environment "CI_PROJECT_NAME CI_PROJECT_DIR CI_COMMIT_REF_SLUG CI_REGISTRY VERSION CI_IMAGE_NAME CI_ENVIRONMENT_NAME CI_COMMIT_SHA HELM_TOKEN HELM_USER PROJECT_NAMESPACE CLUSTER_SERVER CI_DEPLOY_USER CI_DEPLOY_PASSWORD AMQP_URL USER_KEY AGENT_KEY DDS_API_URL" || return 1
+
+  cluster_login
+  if [ $? -gt 0 ]
+  then
+    error "could not login kubectl"
+    return 1
+  fi
+
+  template_secrets
+  if [ $? -gt 0 ]
+  then
+    error "could not template secrets"
+    return 1
+  fi
+
+  print_template
+  if [ $? -gt 0 ]
+  then
+    error "could not print template"
+    return 1
+  fi
+
+  deploy_template
+  if [ $? -gt 0 ]
+  then
+    error "could not deploy template"
+    return 1
+  fi
+
+  watch_deployment
+  if [ $? -gt 0 ]
+  then
+    error "could not watch deployment"
+    return 1
+  fi
+
+  info "ALL Complete!"
+  return
+}
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]
+then
+  run_main
+  if [ $? -gt 0 ]
+  then
+    exit 1
+  fi
+fi

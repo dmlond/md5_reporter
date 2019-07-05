@@ -3,6 +3,7 @@ stages:
   - test
   - scan
   - publish
+  - deployment
 
 variables:
   LOG_LEVEL: "info"
@@ -72,3 +73,20 @@ promote_candidate:
     - branches
   tags:
     - shell-executor
+
+deploy_development:
+  stage: deployment
+  image: $CI_REGISTRY/ori-rad/ci-pipeline-utilities/deployment:latest
+  before_script:
+    - export VERSION=$(echo "${CI_COMMIT_REF_SLUG}" | sed "s/${CI_ENVIRONMENT_NAME}\-//")
+    - export CI_IMAGE_NAME="${CI_REGISTRY_IMAGE}/${CANDIDATE_IMAGE}"
+  script:
+    - ./ci/bin/deploy
+  environment:
+    name: development
+  only:
+    - /^v[0-9]+\.[0-9]+\.[0-9]+$/
+  except:
+    - branches
+  tags:
+    - docker
