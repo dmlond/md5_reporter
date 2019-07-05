@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: md5-reporter
+  labels:
+    app: md5-reporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: md5-reporter
+  template:
+    metadata:
+      labels:
+        app: md5-reporter
+    spec:
+      containers:
+        - name: md5-reporter
+          imagePullPolicy: always
+          command:
+            - /opt/app-root/src/dds_md5_subscriber.rb
+          envFrom:
+            - secretRef:
+                name: md5-reporter-secret-environment
+      imagePullSecrets:
+        - name: md5-reporter-pull
