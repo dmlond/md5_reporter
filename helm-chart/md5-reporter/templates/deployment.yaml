@@ -1,0 +1,37 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "fullName" . }}
+  labels:
+    app: {{ .Chart.Name }}
+    environment: {{ .Values.environment }}
+    version: {{ .Values.version }}
+    git_commit: {{ .Values.git_commit }}
+    git_tag: {{ .Values.git_tag }}
+spec:
+  replicas: {{ .Values.application.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+      environment: {{ .Values.environment }}
+  # This is the pod template
+  template:
+    metadata:
+      labels:
+        app: {{ .Chart.Name }}
+        environment: {{ .Values.environment }}
+        version: {{ .Values.version }}
+        git_commit: {{ .Values.git_commit }}
+    spec:
+      containers:
+        - name: {{ include "fullName" . }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /opt/app-root/src/dds_md5_subscriber.rb
+          envFrom:
+            - secretRef:
+                name: {{ include "fullName" . }}-secret-environment
+      imagePullSecrets:
+        - name: {{ include "fullName" . }}-pull
