@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: md5-reporter
-          imagePullPolicy: always
+          imagePullPolicy: Always
           command:
             - /opt/app-root/src/dds_md5_subscriber.rb
           envFrom:
