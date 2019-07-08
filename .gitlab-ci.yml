@@ -14,6 +14,8 @@ include:
     file: '/image-scanner.yml'
   - project: 'utility/images/auto-version'
     file: '/auto-version.yml'
+  - project: 'ori-rad/ci-pipeline-utilities/deployment'
+    file: '/deployment.yml'
 
 build:
   stage: build
@@ -76,17 +78,10 @@ promote_candidate:
 
 deploy_development:
   stage: deployment
-  image: $CI_REGISTRY/ori-rad/ci-pipeline-utilities/deployment:latest
-  before_script:
-    - export VERSION=$(echo "${CI_COMMIT_REF_SLUG}" | sed "s/${CI_ENVIRONMENT_NAME}\-//")
-    - export CI_IMAGE_NAME="${CI_REGISTRY_IMAGE}/${CANDIDATE_IMAGE}"
-  script:
-    - ${CI_PROJECT_DIR}/.ci/bin/deploy
+  extends: .deploy
   environment:
     name: development
   only:
     - /^v[0-9]+\.[0-9]+\.[0-9]+$/
   except:
     - branches
-  tags:
-    - docker
