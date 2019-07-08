@@ -10,6 +10,7 @@ amqp_url: AMQP_URL
 user_key: USER_KEY
 agent_key: AGENT_KEY
 dds_api_url: DDS_API_URL
+task_queue_name: file_versions
 
 application:
   replicaCount: 1
