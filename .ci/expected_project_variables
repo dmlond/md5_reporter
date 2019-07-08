@@ -1,0 +1,15 @@
+# This file should contain a list of Environment Variable Keys
+# that must be configured in the gitlab repo CI/CD Environment
+# Variables for the overall CI/CD pipeline to work
+CLUSTER_SERVER: the base url (with scheme, but without paths), to the Kubernetes cluster
+PROJECT_NAMESPACE: the name of the kubernetes project to deploy to
+SCAN_SERVICE_URL: url to the DHTS twistlock scanning service
+BOT_KEY: personal access token for the BOT_USER
+BOT_USER: a user with developer or greater role in the project, preferably a service_account
+HELM_USER: provided by DHTS when a Kubernetes project is created
+HELM_TOKEN: provided by DHTS when a Kubernetes project is created
+PROJECT_SPECIFIC_DEPLOY_ARGS: AMQP_URL USER_KEY AGENT_KEY DDS_API_URL
+AMQP_URL: amqp url to rabbitmq
+AGENT_KEY: secret for Duke Data Service software_agent (specific to dds environment)
+USER_KEY: secret for Duke Data Service svc_dds_bot user (specific to dds environment)
+DDS_API_URL: url to Duke Data Service environment API, with /api/v1

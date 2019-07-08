@@ -1,0 +1,29 @@
+# Default values for authentication-service.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+version: CI_COMMIT_REF_SLUG
+environment: CI_ENVIRONMENT_NAME
+git_commit: CI_COMMIT_SHA
+git_tag: CI_COMMIT_REF_SLUG
+amqp_url: AMQP_URL
+user_key: USER_KEY
+agent_key: AGENT_KEY
+dds_api_url: DDS_API_URL
+task_queue_name: file_versions
+
+application:
+  replicaCount: 1
+
+# the registry information used to create the image pull secret
+registry:
+  root: CI_REGISTRY
+  secret:
+    username: CI_DEPLOY_USER
+    password: CI_DEPLOY_PASS
+
+# the docker container image
+image:
+  repository: CI_REGISTRY_IMAGE/CI_PROJECT_NAME
+  tag: CI_COMMIT_REF_SLUG
+  pullPolicy: Always

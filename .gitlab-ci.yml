@@ -1,0 +1,87 @@
+stages:
+  - build
+  - test
+  - scan
+  - publish
+  - deployment
+
+variables:
+  LOG_LEVEL: "info"
+  CANDIDATE_IMAGE: ${CI_PROJECT_NAME}:${CI_COMMIT_SHORT_SHA}
+
+include:
+  - project: 'utility/images/image-scanner'
+    file: '/image-scanner.yml'
+  - project: 'utility/images/auto-version'
+    file: '/auto-version.yml'
+  - project: 'ori-rad/ci-pipeline-utilities/deployment'
+    file: '/deployment.yml'
+
+build:
+  stage: build
+  script:
+    - ./.ci/bin/build
+  only:
+    - branches
+  tags:
+    - shell-executor
+
+rspec:
+  stage: test
+  image: "${CI_REGISTRY_IMAGE}/${CANDIDATE_IMAGE}"
+  # by default, gitlab ci clones your code out into a build directory
+  # that needs to then be initialized with bundler.
+  # Since we are testing a candidate image that already has the required gems
+  # installed with bundle install, we do not need to clone into the build directory.
+  # Instead, we need to change into the APP_PATH for the image before we run the
+  # tests
+  variables:
+    GIT_STRATEGY: none
+    TASK_QUEUE_NAME: TASK_QUEUE_NAME
+  script:
+    - cd ${APP_PATH}
+    - rspec
+  only:
+    - branches
+  tags:
+    - docker
+
+scan:
+  stage: scan
+  before_script:
+    - export SCAN_IMAGE_OVERRIDE="${CANDIDATE_IMAGE}"
+  extends: .scan
+  only:
+    - master
+
+# this only runs on master
+# it automatically generates the next semantic verson and creates an annotated tag
+increment_version:
+  extends: .auto_version
+  stage: publish
+  only:
+    - master
+  tags:
+    - docker
+
+# this only runs when a new semantic version tag is created
+promote_candidate:
+  stage: publish
+  script:
+    - ./.ci/bin/promote_candidate
+  only:
+    - /^v[0-9]+\.[0-9]+\.[0-9]+$/
+  except:
+    - branches
+  tags:
+    - shell-executor
+
+deploy_development:
+  stage: deployment
+  extends: .deploy
+  environment:
+    name: development
+  only:
+    - /^v[0-9]+\.[0-9]+\.[0-9]+$/
+  except:
+    - branches

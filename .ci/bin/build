@@ -1,0 +1,40 @@
+#!/bin/bash
+DIR="$(dirname ${BASH_SOURCE[0]})"
+source ${DIR}/helpers/common
+source ${DIR}/helpers/docker_registry
+source ${DIR}/helpers/build
+
+publish_image() {
+  local image="${1}"
+  local publishable_image="${CI_REGISTRY_IMAGE}/${image}"
+
+  tag_image "${image}" "${publishable_image}" || return 1
+  push_image "${publishable_image}" || return 1
+}
+
+build_candidate() {
+  local candidate_image="${CANDIDATE_IMAGE}"
+  info "
+  Building candidate ${candidate_image}
+  "
+
+  build_dockerfile "Dockerfile" "${candidate_image}" || return
+  publish_image "${candidate_image}"
+}
+
+run_main() {
+  check_required_environment "CANDIDATE_IMAGE CI_PROJECT_URL CI_REGISTRY_IMAGE" || exit 1
+  login || exit 1
+
+  build_candidate || return 1
+  info "ALL COMPLETE"
+}
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]
+then
+  run_main
+  if [ $? -gt 0 ]
+  then
+    exit 1
+  fi
+fi
