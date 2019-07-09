@@ -96,3 +96,24 @@ decommission_development:
     - /^v[0-9]+\.[0-9]+\.[0-9]+$/
   except:
     - branches
+
+deploy_production:
+  stage: deployment
+  extends: .deploy
+  environment:
+    name: prod
+  only:
+    - /^prod-v[0-9]+\.[0-9]+\.[0-9]+$/
+  except:
+    - branches
+
+decommission_production:
+  stage: deployment
+  extends: .decommission
+  environment:
+    name: prod
+  when: manual
+  only:
+    - /^prod-v[0-9]+\.[0-9]+\.[0-9]+$/
+  except:
+    - branches
