@@ -3,6 +3,7 @@ require 'sneakers'
 require 'sneakers/runner'
 require 'sneakers/handlers/maxretry'
 require 'logger'
+require 'memory_profiler' if ENV['PROFILE_MEMORY']
 
 class DdsMd5Subscriber
   require_relative 'dds_md5_reporter'
@@ -18,6 +19,9 @@ class DdsMd5Subscriber
     logger.info("processing file_version_id: #{file_version_id}")
     has_error = false
     begin
+      if ENV['PROFILE_MEMORY']
+        MemoryProfiler.start
+      end
       DdsMd5Reporter.new(
         file_version_id: file_version_id,
         user_key: ENV['USER_KEY'],
@@ -25,6 +29,11 @@ class DdsMd5Subscriber
         dds_api_url: ENV['DDS_API_URL']
       ).report_md5
       logger.info("md5 reported!")
+      if ENV['PROFILE_MEMORY']
+        report = MemoryProfiler.stop
+        logger.info("printing memory profile report")
+        report.pretty_print(scale_bytes: true)
+      end
     rescue StandardError => e
       logger.error(e.message)
       has_error = true
