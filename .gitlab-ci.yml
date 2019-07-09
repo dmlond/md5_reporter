@@ -85,3 +85,18 @@ deploy_development:
     - /^v[0-9]+\.[0-9]+\.[0-9]+$/
   except:
     - branches
+
+decommission_development:
+  stage: deployment
+  image: $CI_REGISTRY/ori-rad/ci-pipeline-utilities/deployment:latest
+  script:
+    - ${CI_PROJECT_DIR}/.ci/bin/decommission
+  environment:
+    name: development
+  when: manual
+  only:
+    - /^v[0-9]+\.[0-9]+\.[0-9]+$/
+  except:
+    - branches
+  tags:
+    - docker

@@ -1,0 +1,57 @@
+#!/bin/bash
+source /usr/local/lib/helpers/common
+source /usr/local/lib/helpers/helm
+
+cluster_login() {
+  info "authenticating ${HELM_USER} in ${PROJECT_NAMESPACE}"
+  dry_run && return
+
+  kubectl config set-cluster ci_kube --server="${CLUSTER_SERVER}" || return 1
+  kubectl config set-credentials "${HELM_USER}" --token="${HELM_TOKEN}" || return 1
+  kubectl config set-context ${PROJECT_NAMESPACE}-deploy  --cluster=ci_kube --namespace=${PROJECT_NAMESPACE} --user=${HELM_USER} || return 1
+  kubectl config use-context ${PROJECT_NAMESPACE}-deploy || return 1
+}
+
+decommission_template() {
+  info "decommissioning template ${CI_ENVIRONMENT_NAME}-${CI_PROJECT_NAME}"
+  dry_run && return
+
+  helm delete --purge "${CI_ENVIRONMENT_NAME}-${CI_PROJECT_NAME}"
+}
+
+run_main() {
+  check_required_environment "CI_PROJECT_NAME CI_ENVIRONMENT_NAME HELM_TOKEN HELM_USER PROJECT_NAMESPACE CLUSTER_SERVER" || return 1
+  cluster_login
+  if [ $? -gt 0 ]
+  then
+    error "could not login kubectl"
+    return 1
+  fi
+
+  init_helm_with_tiller
+  if [ $? -gt 0 ]
+  then
+    error "could not initialize helm"
+    return 1
+  fi
+
+  decommission_template
+  if [ $? -gt 0 ]
+  then
+    error "could not decommission template"
+    return 1
+  fi
+
+  decommission_tiller
+  info "ALL Complete!"
+  return
+}
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]
+then
+  run_main
+  if [ $? -gt 0 ]
+  then
+    exit 1
+  fi
+fi
