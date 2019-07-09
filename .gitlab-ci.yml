@@ -88,9 +88,7 @@ deploy_development:
 
 decommission_development:
   stage: deployment
-  image: $CI_REGISTRY/ori-rad/ci-pipeline-utilities/deployment:latest
-  script:
-    - ${CI_PROJECT_DIR}/.ci/bin/decommission
+  extends: .decommission
   environment:
     name: development
   when: manual
@@ -98,5 +96,3 @@ decommission_development:
     - /^v[0-9]+\.[0-9]+\.[0-9]+$/
   except:
     - branches
-  tags:
-    - docker
