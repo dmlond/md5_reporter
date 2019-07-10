@@ -32,7 +32,12 @@ class DdsMd5Subscriber
       if ENV['PROFILE_MEMORY']
         report = MemoryProfiler.stop
         logger.info("printing memory profile report")
-        report.pretty_print(scale_bytes: true)
+        report.pretty_print(
+          scale_bytes: true,
+          retained_strings: 0,
+          allocated_strings: 0,
+          normalize_paths: true
+        )
       end
     rescue StandardError => e
       logger.error(e.message)
