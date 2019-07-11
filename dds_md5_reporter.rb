@@ -164,6 +164,7 @@ class DdsMd5Reporter
     }.each do |chunk_summary|
       upload_digest << chunk_text(chunk_summary, chunk_start)
       chunk_start += chunk_summary["size"].to_i
+      GC.start if ENV['COLLECT_GARBAGE']
     end
     upload_digest.hexdigest
   end
@@ -194,13 +195,15 @@ end
 if $0 == __FILE__
   file_version_id = ARGV.shift or usage()
   begin
+    report_started = Time.now.to_i
     DdsMd5Reporter.new(
       file_version_id: file_version_id,
       user_key: ENV['USER_KEY'],
       agent_key: ENV['AGENT_KEY'],
       dds_api_url: ENV['DDS_API_URL']
     ).report_md5
-    puts "md5 reported"
+    report_time = Time.now.to_i - report_started
+    puts "md5 reported in #{report_time} seconds"
   rescue ArgumentError => e
     $stderr.puts "#{e.message}"
     usage()
