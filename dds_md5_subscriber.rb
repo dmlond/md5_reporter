@@ -19,9 +19,6 @@ class DdsMd5Subscriber
     logger.info("processing file_version_id: #{file_version_id}")
     has_error = false
     begin
-      if ENV['PROFILE_MEMORY']
-        MemoryProfiler.start
-      end
       report_started = Time.now.to_i
       DdsMd5Reporter.new(
         file_version_id: file_version_id,
@@ -31,16 +28,6 @@ class DdsMd5Subscriber
       ).report_md5
       report_time = Time.now.to_i - report_started
       logger.info("md5 reported in #{report_time} seconds!")
-      if ENV['PROFILE_MEMORY']
-        report = MemoryProfiler.stop
-        logger.info("printing memory profile report")
-        report.pretty_print(
-          scale_bytes: true,
-          retained_strings: 0,
-          allocated_strings: 0,
-          normalize_paths: true
-        )
-      end
     rescue StandardError => e
       logger.error(e.message)
       has_error = true

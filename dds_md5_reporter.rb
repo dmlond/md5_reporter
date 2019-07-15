@@ -164,7 +164,7 @@ class DdsMd5Reporter
     }.each do |chunk_summary|
       upload_digest << chunk_text(chunk_summary, chunk_start)
       chunk_start += chunk_summary["size"].to_i
-      GC.start if ENV['COLLECT_GARBAGE']
+      GC.start
     end
     upload_digest.hexdigest
   end
