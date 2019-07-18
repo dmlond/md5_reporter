@@ -3,7 +3,6 @@ require 'sneakers'
 require 'sneakers/runner'
 require 'sneakers/handlers/maxretry'
 require 'logger'
-require 'memory_profiler' if ENV['PROFILE_MEMORY']
 
 class DdsMd5Subscriber
   require_relative 'dds_md5_reporter'
