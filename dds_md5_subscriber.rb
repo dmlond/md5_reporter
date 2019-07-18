@@ -18,13 +18,15 @@ class DdsMd5Subscriber
     logger.info("processing file_version_id: #{file_version_id}")
     has_error = false
     begin
+      report_started = Time.now.to_i
       DdsMd5Reporter.new(
         file_version_id: file_version_id,
         user_key: ENV['USER_KEY'],
         agent_key: ENV['AGENT_KEY'],
         dds_api_url: ENV['DDS_API_URL']
       ).report_md5
-      logger.info("md5 reported!")
+      report_time = Time.now.to_i - report_started
+      logger.info("md5 reported in #{report_time} seconds!")
     rescue StandardError => e
       logger.error(e.message)
       has_error = true
